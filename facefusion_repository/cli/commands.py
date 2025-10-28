@@ -9,6 +9,7 @@ from facefusion_repository.repository.manager import RepositoryManager
 from facefusion_repository.gpu.manager import GPUManager
 from facefusion_repository.preview.test_image_manager import TestImageManager
 from facefusion_repository.preview.preview_generator import PreviewGenerator
+from facefusion_repository.queue.manager import QueueManager
 
 
 def register_repository_commands(subparsers: argparse._SubParsersAction) -> None:
@@ -165,6 +166,68 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
         help='Output directory for test images (default: repository test_images/)'
     )
     parser_create_test.set_defaults(func=cmd_repo_create_test_images)
+
+    # repo-create-queue command
+    parser_create_queue = subparsers.add_parser(
+        'repo-create-queue',
+        help='Create processing queue with FaceFusion destination selection'
+    )
+    parser_create_queue.add_argument(
+        '--person',
+        required=True,
+        help='Person name'
+    )
+    parser_create_queue.add_argument(
+        '--face-id',
+        required=True,
+        help='Source face ID'
+    )
+    parser_create_queue.add_argument(
+        '--destination',
+        required=True,
+        help='Destination media path (video or image)'
+    )
+    parser_create_queue.add_argument(
+        '--face-selector',
+        default='reference',
+        choices=['reference', 'one', 'many', 'best-quality', 'all'],
+        help='FaceFusion face selector mode (default: reference)'
+    )
+    parser_create_queue.add_argument(
+        '--face-index',
+        type=int,
+        help='Face index for "one" selector mode'
+    )
+    parser_create_queue.add_argument(
+        '--reference-face-distance',
+        type=float,
+        default=0.6,
+        help='Reference face distance threshold (default: 0.6)'
+    )
+    parser_create_queue.add_argument(
+        '--settings',
+        help='Processing settings profile name'
+    )
+    parser_create_queue.set_defaults(func=cmd_repo_create_queue)
+
+    # repo-list-queues command
+    parser_list_queues = subparsers.add_parser(
+        'repo-list-queues',
+        help='List processing queues'
+    )
+    parser_list_queues.add_argument(
+        '--status',
+        choices=['pending', 'processing', 'completed', 'failed'],
+        help='Filter by status'
+    )
+    parser_list_queues.set_defaults(func=cmd_repo_list_queues)
+
+    # repo-queue-stats command
+    parser_queue_stats = subparsers.add_parser(
+        'repo-queue-stats',
+        help='Show queue statistics'
+    )
+    parser_queue_stats.set_defaults(func=cmd_repo_queue_stats)
 
 
 def cmd_repo_init(args: argparse.Namespace) -> int:
@@ -600,3 +663,130 @@ def cmd_repo_create_test_images(args: argparse.Namespace) -> int:
     else:
         print('✗ No test images were created')
         return 1
+
+
+def cmd_repo_create_queue(args: argparse.Namespace) -> int:
+    """
+    Create processing queue command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    print(f'Creating queue for {args.person}...')
+    
+    # Verify face exists
+    repo = RepositoryManager()
+    face = repo.get_face(args.face_id)
+    
+    if not face:
+        print(f'✗ Face not found: {args.face_id}')
+        return 1
+    
+    if face.metadata.person != args.person:
+        print(f'✗ Face {args.face_id} does not belong to person {args.person}')
+        return 1
+    
+    # Create queue
+    queue_manager = QueueManager()
+    
+    try:
+        queue_id = queue_manager.create_queue(
+            person=args.person,
+            face_id=args.face_id,
+            destination_media=args.destination,
+            face_selector_mode=args.face_selector,
+            face_index=args.face_index,
+            reference_face_distance=args.reference_face_distance,
+            processing_settings=args.settings
+        )
+        
+        print('✓ Queue created successfully')
+        print(f'  Queue ID: {queue_id}')
+        print(f'  Person: {args.person}')
+        print(f'  Face ID: {args.face_id}')
+        print(f'  Destination: {args.destination}')
+        print(f'  Face Selector Mode: {args.face_selector}')
+        
+        if args.face_index is not None:
+            print(f'  Face Index: {args.face_index}')
+        
+        print(f'  Reference Face Distance: {args.reference_face_distance}')
+        
+        if args.settings:
+            print(f'  Settings Profile: {args.settings}')
+        
+        return 0
+        
+    except Exception as e:
+        print(f'✗ Failed to create queue: {e}')
+        return 1
+
+
+def cmd_repo_list_queues(args: argparse.Namespace) -> int:
+    """
+    List processing queues command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    queue_manager = QueueManager()
+    queues = queue_manager.list_queues(status=args.status)
+    
+    if not queues:
+        print('No queues found.')
+        if args.status:
+            print(f'Try removing --status filter to see all queues.')
+        return 0
+    
+    print(f'Found {len(queues)} queue(s):')
+    print()
+    
+    for queue in queues:
+        print(f'Queue ID: {queue.queue_id}')
+        print(f'  Person: {queue.source_person}')
+        print(f'  Face ID: {queue.source_face_id}')
+        print(f'  Destination: {queue.destination_media}')
+        print(f'  Face Selector: {queue.destination_selection.face_selector_mode}')
+        print(f'  Status: {queue.status}')
+        print(f'  Created: {queue.created_date}')
+        print()
+    
+    return 0
+
+
+def cmd_repo_queue_stats(args: argparse.Namespace) -> int:
+    """
+    Show queue statistics command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    queue_manager = QueueManager()
+    stats = queue_manager.get_queue_statistics()
+    
+    print('Queue Statistics:')
+    print('-' * 60)
+    print(f'Total Queues: {stats["total"]}')
+    print()
+    
+    if stats['by_status']:
+        print('By Status:')
+        for status, count in sorted(stats['by_status'].items()):
+            print(f'  {status}: {count}')
+        print()
+    
+    if stats['by_person']:
+        print('By Person:')
+        for person, count in sorted(stats['by_person'].items()):
+            print(f'  {person}: {count}')
+    
+    return 0

@@ -12,12 +12,15 @@ import sys
 from facefusion import state_manager
 from facefusion_repository.cli.commands import (
     cmd_repo_add_face,
+    cmd_repo_create_queue,
     cmd_repo_create_test_images,
     cmd_repo_gpu_configure,
     cmd_repo_gpu_status,
     cmd_repo_init,
     cmd_repo_list,
+    cmd_repo_list_queues,
     cmd_repo_people,
+    cmd_repo_queue_stats,
     cmd_repo_remove,
     cmd_repo_show,
     cmd_repo_stats
@@ -178,6 +181,65 @@ def create_parser() -> argparse.ArgumentParser:
         help='Output directory for test images (default: repository test_images/)'
     )
 
+    # create-queue
+    parser_create_queue = subparsers.add_parser(
+        'create-queue',
+        help='Create processing queue with FaceFusion destination selection'
+    )
+    parser_create_queue.add_argument(
+        '--person',
+        required=True,
+        help='Person name'
+    )
+    parser_create_queue.add_argument(
+        '--face-id',
+        required=True,
+        help='Source face ID'
+    )
+    parser_create_queue.add_argument(
+        '--destination',
+        required=True,
+        help='Destination media path (video or image)'
+    )
+    parser_create_queue.add_argument(
+        '--face-selector',
+        default='reference',
+        choices=['reference', 'one', 'many', 'best-quality', 'all'],
+        help='FaceFusion face selector mode (default: reference)'
+    )
+    parser_create_queue.add_argument(
+        '--face-index',
+        type=int,
+        help='Face index for "one" selector mode'
+    )
+    parser_create_queue.add_argument(
+        '--reference-face-distance',
+        type=float,
+        default=0.6,
+        help='Reference face distance threshold (default: 0.6)'
+    )
+    parser_create_queue.add_argument(
+        '--settings',
+        help='Processing settings profile name'
+    )
+
+    # list-queues
+    parser_list_queues = subparsers.add_parser(
+        'list-queues',
+        help='List processing queues'
+    )
+    parser_list_queues.add_argument(
+        '--status',
+        choices=['pending', 'processing', 'completed', 'failed'],
+        help='Filter by status'
+    )
+
+    # queue-stats
+    parser_queue_stats = subparsers.add_parser(
+        'queue-stats',
+        help='Show queue statistics'
+    )
+
     return parser
 
 
@@ -217,7 +279,10 @@ def main() -> int:
         'people': cmd_repo_people,
         'gpu-status': cmd_repo_gpu_status,
         'gpu-configure': cmd_repo_gpu_configure,
-        'create-test-images': cmd_repo_create_test_images
+        'create-test-images': cmd_repo_create_test_images,
+        'create-queue': cmd_repo_create_queue,
+        'list-queues': cmd_repo_list_queues,
+        'queue-stats': cmd_repo_queue_stats
     }
 
     command_func = command_map.get(args.command)
