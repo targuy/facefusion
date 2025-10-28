@@ -52,7 +52,33 @@ commands:
     job-run-all                                   run all queued jobs
     job-retry                                     retry a failed job
     job-retry-all                                 retry all failed jobs
+    repo-init                                     initialize face repository
+    repo-add                                      add face to repository
+    repo-list                                     list persons in repository
+    repo-execute                                  execute face swap with repository
 ```
+
+
+Repository System
+-----------------
+
+FaceFusion now supports a repository-based face swapping system that automatically selects the optimal face for each video frame based on 3D pose similarity. 
+
+Store multiple face orientations per person and let the system dynamically choose the best match for each frame:
+
+```bash
+# Initialize repository
+python facefusion.py repo-init
+
+# Add multiple face orientations
+python facefusion.py repo-add --person "john" --source john_front.jpg
+python facefusion.py repo-add --person "john" --source john_profile.jpg
+
+# Process video with optimal face selection
+python facefusion.py repo-execute --person "john" --target video.mp4 --output result.mp4
+```
+
+See [REPOSITORY_GUIDE.md](REPOSITORY_GUIDE.md) for detailed documentation.
 
 
 Documentation
