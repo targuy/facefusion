@@ -9,15 +9,26 @@ system independently.
 import argparse
 import sys
 
-from facefusion import state_manager
 from facefusion_repository.cli.commands import (
     cmd_repo_add_face,
     cmd_repo_init,
     cmd_repo_list,
     cmd_repo_remove,
     cmd_repo_show,
-    cmd_repo_stats
+    cmd_repo_stats,
+    cmd_settings_compare,
+    cmd_settings_create,
+    cmd_settings_delete,
+    cmd_settings_export,
+    cmd_settings_import,
+    cmd_settings_list,
+    cmd_settings_show,
+    cmd_settings_templates,
+    cmd_settings_update,
+    cmd_settings_validate
 )
+
+from facefusion import state_manager
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -104,6 +115,153 @@ def create_parser() -> argparse.ArgumentParser:
         help='Show repository statistics'
     )
 
+    # Settings commands
+    # settings-create
+    parser_settings_create = subparsers.add_parser(
+        'settings-create',
+        help='Create new settings profile'
+    )
+    parser_settings_create.add_argument(
+        '--name',
+        required=True,
+        help='Profile name'
+    )
+    parser_settings_create.add_argument(
+        '--template',
+        help='Use predefined template (default_swap, high_quality, fast_preview, etc.)'
+    )
+    parser_settings_create.add_argument(
+        '--settings-file',
+        help='Path to JSON file with settings'
+    )
+    parser_settings_create.add_argument(
+        '--description',
+        help='Profile description'
+    )
+    parser_settings_create.add_argument(
+        '--tags',
+        help='Comma-separated tags'
+    )
+
+    # settings-list
+    parser_settings_list = subparsers.add_parser(
+        'settings-list',
+        help='List settings profiles'
+    )
+    parser_settings_list.add_argument(
+        '--tags',
+        help='Filter by tags (comma-separated)'
+    )
+
+    # settings-show
+    parser_settings_show = subparsers.add_parser(
+        'settings-show',
+        help='Show settings profile details'
+    )
+    parser_settings_show.add_argument(
+        '--name',
+        required=True,
+        help='Profile name'
+    )
+
+    # settings-update
+    parser_settings_update = subparsers.add_parser(
+        'settings-update',
+        help='Update settings profile'
+    )
+    parser_settings_update.add_argument(
+        '--name',
+        required=True,
+        help='Profile name'
+    )
+    parser_settings_update.add_argument(
+        '--settings-file',
+        help='Path to JSON file with new settings'
+    )
+    parser_settings_update.add_argument(
+        '--description',
+        help='New description'
+    )
+    parser_settings_update.add_argument(
+        '--tags',
+        help='New tags (comma-separated)'
+    )
+
+    # settings-delete
+    parser_settings_delete = subparsers.add_parser(
+        'settings-delete',
+        help='Delete settings profile'
+    )
+    parser_settings_delete.add_argument(
+        '--name',
+        required=True,
+        help='Profile name'
+    )
+
+    # settings-compare
+    parser_settings_compare = subparsers.add_parser(
+        'settings-compare',
+        help='Compare two settings profiles'
+    )
+    parser_settings_compare.add_argument(
+        '--profile1',
+        required=True,
+        help='First profile name'
+    )
+    parser_settings_compare.add_argument(
+        '--profile2',
+        required=True,
+        help='Second profile name'
+    )
+
+    # settings-export
+    parser_settings_export = subparsers.add_parser(
+        'settings-export',
+        help='Export settings profile to file'
+    )
+    parser_settings_export.add_argument(
+        '--name',
+        required=True,
+        help='Profile name'
+    )
+    parser_settings_export.add_argument(
+        '--output',
+        required=True,
+        help='Output file path'
+    )
+
+    # settings-import
+    parser_settings_import = subparsers.add_parser(
+        'settings-import',
+        help='Import settings profile from file'
+    )
+    parser_settings_import.add_argument(
+        '--input',
+        required=True,
+        help='Input file path'
+    )
+    parser_settings_import.add_argument(
+        '--name',
+        help='Profile name (uses original if not provided)'
+    )
+
+    # settings-validate
+    parser_settings_validate = subparsers.add_parser(
+        'settings-validate',
+        help='Validate settings profile'
+    )
+    parser_settings_validate.add_argument(
+        '--name',
+        required=True,
+        help='Profile name'
+    )
+
+    # settings-templates
+    parser_settings_templates = subparsers.add_parser(
+        'settings-templates',
+        help='List available settings templates'
+    )
+
     return parser
 
 
@@ -139,7 +297,17 @@ def main() -> int:
         'list': cmd_repo_list,
         'show': cmd_repo_show,
         'remove': cmd_repo_remove,
-        'stats': cmd_repo_stats
+        'stats': cmd_repo_stats,
+        'settings-create': cmd_settings_create,
+        'settings-list': cmd_settings_list,
+        'settings-show': cmd_settings_show,
+        'settings-update': cmd_settings_update,
+        'settings-delete': cmd_settings_delete,
+        'settings-compare': cmd_settings_compare,
+        'settings-export': cmd_settings_export,
+        'settings-import': cmd_settings_import,
+        'settings-validate': cmd_settings_validate,
+        'settings-templates': cmd_settings_templates
     }
 
     command_func = command_map.get(args.command)

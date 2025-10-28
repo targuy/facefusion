@@ -186,6 +186,55 @@ class ValidationResult:
     warnings: List[str] = field(default_factory=list)
 
 
+@dataclass
+class SettingsProfile:
+    """Settings profile for FaceFusion configuration."""
+    name: str
+    description: str
+    settings: Dict[str, Any]
+    created_date: str
+    modified_date: str
+    version: str = "1.0.0"
+    tags: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to dictionary."""
+        return {
+            'name': self.name,
+            'description': self.description,
+            'settings': self.settings,
+            'created_date': self.created_date,
+            'modified_date': self.modified_date,
+            'version': self.version,
+            'tags': self.tags
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SettingsProfile':
+        """Deserialize from dictionary."""
+        return cls(
+            name=data['name'],
+            description=data['description'],
+            settings=data['settings'],
+            created_date=data['created_date'],
+            modified_date=data['modified_date'],
+            version=data.get('version', '1.0.0'),
+            tags=data.get('tags', [])
+        )
+
+
+@dataclass
+class ProfileComparison:
+    """Result of comparing two settings profiles."""
+    profile1_name: str
+    profile2_name: str
+    identical: bool
+    common_settings: Dict[str, Any]
+    different_settings: Dict[str, Tuple[Any, Any]]  # key: (value1, value2)
+    only_in_profile1: Dict[str, Any]
+    only_in_profile2: Dict[str, Any]
+
+
 # Preset Types
 
 @dataclass
