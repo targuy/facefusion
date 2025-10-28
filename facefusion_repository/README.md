@@ -97,6 +97,35 @@ python facefusion_repo_cli.py remove --face-id face_20251028_abc123
 python facefusion_repo_cli.py list --tags alice
 ```
 
+### Example 3: Settings Profile Management
+
+```bash
+# View available templates
+python facefusion_repo_cli.py settings-templates
+
+# Create profile from template
+python facefusion_repo_cli.py settings-create \
+  --name my_high_quality \
+  --template high_quality \
+  --tags production
+
+# List all settings profiles
+python facefusion_repo_cli.py settings-list
+
+# View profile details
+python facefusion_repo_cli.py settings-show --name my_high_quality
+
+# Compare two profiles
+python facefusion_repo_cli.py settings-compare \
+  --profile1 my_high_quality \
+  --profile2 fast_preview
+
+# Export for sharing
+python facefusion_repo_cli.py settings-export \
+  --name my_high_quality \
+  --output my_settings.json
+```
+
 ## Quality Requirements
 
 Faces must meet these quality thresholds to be accepted:
@@ -125,7 +154,10 @@ Faces must meet these quality thresholds to be accepted:
 │   ├── face_20251028_001.jpg
 │   ├── face_20251028_002.jpg
 │   └── ...
-├── settings/           # Settings profiles (future)
+├── settings/           # Settings profiles
+│   ├── my_profile.json
+│   ├── production.json
+│   └── ...
 ├── presets.json        # Named presets (future)
 └── temp/              # Temporary processing files (future)
 ```
@@ -152,14 +184,24 @@ Faces must meet these quality thresholds to be accepted:
 
 **Status**: Planned
 
-### Module 3: Settings Management 🔄
+### Module 3: Settings Management ✅
 
 **Components:**
-- Settings profile storage
-- Profile validation
-- Apply to FaceFusion state
+- `SettingsManager`: CRUD operations for settings profiles
+- `ProfileValidator`: Parameter validation and compatibility checking
+- `SettingsTemplate`: Pre-configured settings templates
+- `ProfileComparator`: Profile comparison and analysis
 
-**Status**: Planned
+**Status**: Complete
+
+**Features:**
+- Create, read, update, delete settings profiles
+- 6 built-in templates (default, high-quality, fast-preview, gpu-accelerated, multi-face, reference-face)
+- Comprehensive validation for all FaceFusion parameters
+- Profile comparison with difference highlighting
+- Export/import profiles via JSON
+- Tag-based organization
+- CLI commands for all operations
 
 ### Module 4: Named Presets System 🔄
 
@@ -185,10 +227,12 @@ Faces must meet these quality thresholds to be accepted:
 - **[SPECIFICATIONS.md](SPECIFICATIONS.md)**: Detailed technical specifications
 - **[MANUAL.md](MANUAL.md)**: Comprehensive user manual
 - **[SUMMARY.md](SUMMARY.md)**: Project summary and status
+- **[SETTINGS_GUIDE.md](SETTINGS_GUIDE.md)**: Settings profile management user guide
+- **[SETTINGS_PARAMETERS.md](SETTINGS_PARAMETERS.md)**: Complete settings parameters reference
 
 ## Development Status
 
-**Current Version**: 1.0.0 (Module 1 Complete)
+**Current Version**: 2.0.0 (Modules 1-3 Complete)
 
 **Completed**:
 - ✅ Repository management (add, list, show, remove)
@@ -196,13 +240,16 @@ Faces must meet these quality thresholds to be accepted:
 - ✅ Orientation matching algorithms
 - ✅ Compatibility matrix and coverage reports
 - ✅ CLI interface for Module 1
+- ✅ Settings profile management
+- ✅ Profile validation and templates
+- ✅ Profile comparison and analysis
+- ✅ CLI interface for Module 3
 - ✅ Comprehensive documentation
 
 **In Progress**:
-- 🔄 Destination face analysis
-- 🔄 Settings management
-- 🔄 Presets system
-- 🔄 Batch execution engine
+- 🔄 Destination face analysis (Module 2)
+- 🔄 Named presets system (Module 4)
+- 🔄 Batch execution engine (Module 5)
 - 🔄 Complete CLI integration
 - 🔄 GUI interface
 
