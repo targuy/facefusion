@@ -1,6 +1,6 @@
 """Type definitions for the repository system."""
 
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict, List, TypedDict
 
 
 class QualityMetricsDict(TypedDict, total=False):
@@ -32,7 +32,11 @@ class PersonEntry(TypedDict):
 	face_paths: List[str]
 	face_count: int
 	metadata: Dict[str, Any]
-	face_metadata: Optional[Dict[str, FaceMetadata]]  # New: per-face metadata keyed by face path
+
+
+class PersonEntryWithMetadata(PersonEntry, total=False):
+	"""Person entry with optional face metadata."""
+	face_metadata: Dict[str, FaceMetadata]  # Optional: per-face metadata keyed by face path
 
 
 class RepositoryStorage(TypedDict):

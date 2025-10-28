@@ -1,6 +1,6 @@
 """Quality assessment module for repository faces."""
 
-from typing import Dict, List, NamedTuple
+from typing import Any, Dict, List, NamedTuple
 
 import cv2
 import numpy
@@ -159,7 +159,7 @@ class QualityAssessor:
 
 	def filter_by_quality_threshold(
 		self,
-		face_paths_with_quality: List[Dict[str, any]],
+		face_paths_with_quality: List[Dict[str, Any]],
 		threshold: float = 0.7
 	) -> List[str]:
 		"""

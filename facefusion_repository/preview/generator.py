@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 class PreviewResult:
@@ -26,7 +26,7 @@ class PreviewGenerator:
 		source_faces: List[str],
 		target_image: str,
 		output_path: Optional[str] = None,
-		settings: Optional[Dict[str, any]] = None
+		settings: Optional[Dict[str, Any]] = None
 	) -> PreviewResult:
 		"""
 		Generate a preview of face swap operation.
