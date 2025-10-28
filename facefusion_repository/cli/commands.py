@@ -140,16 +140,16 @@ def cmd_repo_add_face(args: argparse.Namespace) -> int:
         print('✓ Face added successfully!')
         print('  ID: {}'.format(face_id))
         if args.name:
-            print(f'  Name: {args.name}')
+            print('  Name: {}'.format(args.name))
         if tags:
-            print(f'  Tags: {", ".join(tags)}')
+            print('  Tags: {}'.format(', '.join(tags)))
 
         # Show face details
         face = repo.get_face(face_id)
         if face:
-            print(f'  Orientation: {face.orientation_angle}°')
-            print(f'  Quality: {face.quality_metrics.overall_quality:.2f}')
-            print(f'  Resolution: {face.quality_metrics.resolution[0]}x{face.quality_metrics.resolution[1]}')
+            print('  Orientation: {}°'.format(face.orientation_angle))
+            print('  Quality: {:.2f}'.format(face.quality_metrics.overall_quality))
+            print('  Resolution: {}x{}'.format(face.quality_metrics.resolution[0], face.quality_metrics.resolution[1]))
         return 0
     else:
         print('✗ Failed to add face (see error messages above)')
@@ -183,18 +183,18 @@ def cmd_repo_list(args: argparse.Namespace) -> int:
             print('Try removing filters to see all faces.')
         return 0
 
-    print(f'Found {len(faces)} face(s):')
+    print('Found {} face(s):'.format(len(faces)))
     print()
 
     for face in faces:
-        print(f'ID: {face.id}')
-        print(f'  Name: {face.metadata.name or "Unnamed"}')
-        print(f'  Orientation: {face.orientation_angle}°')
-        print(f'  Quality: {face.quality_metrics.overall_quality:.2f}')
-        print(f'  Resolution: {face.quality_metrics.resolution[0]}x{face.quality_metrics.resolution[1]}')
+        print('ID: {}'.format(face.id))
+        print('  Name: {}'.format(face.metadata.name or 'Unnamed'))
+        print('  Orientation: {}°'.format(face.orientation_angle))
+        print('  Quality: {:.2f}'.format(face.quality_metrics.overall_quality))
+        print('  Resolution: {}x{}'.format(face.quality_metrics.resolution[0], face.quality_metrics.resolution[1]))
         if face.metadata.tags:
-            print(f'  Tags: {", ".join(face.metadata.tags)}')
-        print(f'  Added: {face.metadata.added_date}')
+            print('  Tags: {}'.format(', '.join(face.metadata.tags)))
+        print('  Added: {}'.format(face.metadata.added_date))
         print()
 
     return 0
@@ -217,24 +217,24 @@ def cmd_repo_show(args: argparse.Namespace) -> int:
         print('✗ Face not found: {}'.format(args.face_id))
         return 1
 
-    print(f'Face Details: {args.face_id}')
+    print('Face Details: {}'.format(args.face_id))
     print('=' * 60)
     print()
-    print(f'Name: {face.metadata.name or "Unnamed"}')
-    print(f'File: {face.file_path}')
-    print(f'Orientation: {face.orientation_angle}°')
+    print('Name: {}'.format(face.metadata.name or 'Unnamed'))
+    print('File: {}'.format(face.file_path))
+    print('Orientation: {}°'.format(face.orientation_angle))
     print()
     print('Quality Metrics:')
-    print(f'  Resolution: {face.quality_metrics.resolution[0]}x{face.quality_metrics.resolution[1]}')
-    print(f'  Sharpness: {face.quality_metrics.sharpness:.3f}')
-    print(f'  Brightness: {face.quality_metrics.brightness:.3f}')
-    print(f'  Contrast: {face.quality_metrics.contrast:.3f}')
-    print(f'  Detector Score: {face.quality_metrics.detector_score:.3f}')
-    print(f'  Overall Quality: {face.quality_metrics.overall_quality:.3f}')
+    print('  Resolution: {}x{}'.format(face.quality_metrics.resolution[0], face.quality_metrics.resolution[1]))
+    print('  Sharpness: {:.3f}'.format(face.quality_metrics.sharpness))
+    print('  Brightness: {:.3f}'.format(face.quality_metrics.brightness))
+    print('  Contrast: {:.3f}'.format(face.quality_metrics.contrast))
+    print('  Detector Score: {:.3f}'.format(face.quality_metrics.detector_score))
+    print('  Overall Quality: {:.3f}'.format(face.quality_metrics.overall_quality))
     print()
     if face.metadata.tags:
-        print(f'Tags: {", ".join(face.metadata.tags)}')
-    print(f'Added: {face.metadata.added_date}')
+        print('Tags: {}'.format(', '.join(face.metadata.tags)))
+    print('Added: {}'.format(face.metadata.added_date))
 
     return 0
 
