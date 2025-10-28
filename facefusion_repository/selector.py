@@ -2,8 +2,6 @@
 
 from typing import List, Optional
 
-from facefusion.face_store import get_static_faces
-from facefusion.typing import Face, VisionFrame
 from facefusion_repository.manager import RepositoryManager
 
 
