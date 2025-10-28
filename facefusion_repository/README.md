@@ -1,18 +1,25 @@
 # FaceFusion Repository System
 
-Advanced face repository management with orientation-based matching for the FaceFusion platform.
+Advanced face repository management with person-based organization, 3D pose estimation, GPU acceleration, and preview system for the FaceFusion platform.
 
 ## Overview
 
-The FaceFusion Repository System extends FaceFusion with sophisticated capabilities for managing multiple source faces at different orientations, enabling high-quality face swaps in videos with varying face angles.
+The FaceFusion Repository System extends FaceFusion with sophisticated capabilities for managing source faces organized by person, enabling high-quality face swaps with intelligent orientation matching, occlusion detection, and seamless FaceFusion integration.
 
 ### Key Features
 
-- **Multi-Orientation Repository**: Store source faces at 8 standard orientation angles (0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°)
+- **Person-Based Organization**: Simple flat directory structure (`faces/marc/`, `faces/alice/`)
+- **Mandatory Person Names**: Every face belongs to a person - no more confusing collections
+- **3D Pose Estimation**: Full pitch/yaw/tilt analysis with automatic pose filtering
+- **Occlusion Detection**: Automatically skip faces with critical occlusions
+- **GPU Hardware Acceleration**: Support for CUDA, DirectML, ROCm, and Apple Silicon
+- **Preview System**: Test face swaps before adding to repository
+- **Test Image Generation**: Automatically create reference images for preview testing
+- **FaceFusion Integration**: Queue system with full destination selection support
+- **Multi-Face Processing**: Leverage FaceFusion's face selector modes (reference, best-quality, all, etc.)
 - **Automatic Quality Assessment**: Filter faces based on resolution, sharpness, brightness, and contrast
-- **Intelligent Matching**: Automatically select the best source face for each destination based on orientation
-- **Duplicate Detection**: Prevents storing redundant faces with similar orientations
-- **Comprehensive Statistics**: Visualize repository coverage and quality metrics
+- **Intelligent Matching**: Automatically select the best source face based on 3D orientation
+- **Duplicate Prevention**: Keeps only the highest quality face per person per orientation
 
 ## Quick Start
 
@@ -22,79 +29,303 @@ The FaceFusion Repository System extends FaceFusion with sophisticated capabilit
 python facefusion_repo_cli.py init
 ```
 
-This creates the repository structure at `~/.facefusion_repository/`
+This creates the repository structure at `~/.facefusion_repository/`:
+- `faces/` - Person-based face storage
+- `settings/` - Processing settings profiles
+- `presets/` - Person + settings combinations
+- `queues/` - Processing queues
+- `test_images/` - Reference images for previews
 
-### 2. Add Faces
+### 2. Add Faces (Person-Based)
 
 ```bash
-# Add a face with a name
-python facefusion_repo_cli.py add --source path/to/face.jpg --name "Alice Frontal"
+# Add a face for Marc (person name is required)
+python facefusion_repo_cli.py add --source face.jpg --person "marc" --name "frontal"
 
-# Add a face with tags
-python facefusion_repo_cli.py add --source path/to/profile.jpg --name "Alice Profile" --tags profile,high-quality
+# Add with tags
+python facefusion_repo_cli.py add --source profile.jpg --person "marc" --name "profile" --tags profile,high-quality
+
+# Add with preview (validates quality first)
+python facefusion_repo_cli.py add --source face.jpg --person "alice" --preview
 ```
 
 The system will:
 - Detect the face in the image
+- Estimate 3D pose (pitch, yaw, tilt)
+- Check for occlusions
 - Assess quality metrics
 - Determine orientation angle
-- Store if quality is acceptable
+- Store in person's directory if acceptable
 
-### 3. List Faces
+### 3. List People and Faces
 
 ```bash
-# List all faces
-python facefusion_repo_cli.py list
+# List all people in repository
+python facefusion_repo_cli.py people
 
-# Filter by orientation
-python facefusion_repo_cli.py list --orientation 0
+# List all faces for a person
+python facefusion_repo_cli.py list --person "marc"
+
+# Filter by orientation and tags
+python facefusion_repo_cli.py list --person "marc" --orientation 0 --tags frontal
 
 # Filter by tags
-python facefusion_repo_cli.py list --tags frontal,high-quality
+python facefusion_repo_cli.py list --tags high-quality
 ```
 
 ### 4. View Statistics
 
 ```bash
+# Overall repository statistics
 python facefusion_repo_cli.py stats
+
+# Statistics for a specific person
+python facefusion_repo_cli.py stats --person "marc"
 ```
 
 Shows:
 - Total faces and quality metrics
 - Orientation coverage visualization
 - Missing orientations
-- Storage usage
+- People in repository
+
+### 5. GPU Configuration
+
+```bash
+# Check GPU status
+python facefusion_repo_cli.py gpu-status
+
+# Enable GPU acceleration
+python facefusion_repo_cli.py gpu-configure --enable
+
+# Set memory limit
+python facefusion_repo_cli.py gpu-configure --memory-limit 8192
+
+# Disable GPU (CPU only)
+python facefusion_repo_cli.py gpu-configure --disable
+```
+
+### 6. Create Test Images for Preview
+
+```bash
+# Generate test images from reference directory
+python facefusion_repo_cli.py create-test-images --source-dir ./reference_images
+
+# Use custom output directory
+python facefusion_repo_cli.py create-test-images --source-dir ./refs --output-dir ./my_tests
+```
+
+### 7. Create Processing Queues
+
+```bash
+# Create queue with FaceFusion destination selection
+python facefusion_repo_cli.py create-queue \
+  --person "marc" \
+  --face-id "face_20251028_abc123" \
+  --destination "video.mp4" \
+  --face-selector "best-quality"
+
+# Use specific face index
+python facefusion_repo_cli.py create-queue \
+  --person "alice" \
+  --face-id "face_20251028_xyz789" \
+  --destination "image.jpg" \
+  --face-selector "one" \
+  --face-index 0
+
+# List all queues
+python facefusion_repo_cli.py list-queues
+
+# Filter by status
+python facefusion_repo_cli.py list-queues --status pending
+
+# View queue statistics
+python facefusion_repo_cli.py queue-stats
+```
+
+## Complete CLI Reference
+
+### Repository Management
+- `init` - Initialize face repository
+- `add` - Add face to repository (requires --person)
+- `list` - List faces with optional filters (--person, --orientation, --tags)
+- `show` - Show detailed face information including 3D pose
+- `remove` - Remove face from repository
+- `people` - List all people in repository
+- `stats` - Show repository statistics (overall or --person specific)
+
+### GPU Management
+- `gpu-status` - Show GPU hardware and configuration
+- `gpu-configure` - Configure GPU settings (--enable, --disable, --memory-limit)
+
+### Preview System
+- `create-test-images` - Generate test images from source directory
+- Use `--preview` flag with `add` command for preview before adding
+
+### Queue Management
+- `create-queue` - Create processing queue with FaceFusion destination selection
+- `list-queues` - List processing queues (optional --status filter)
+- `queue-stats` - Show queue statistics
+
+## Directory Structure
+
+```
+~/.facefusion_repository/
+├── faces/                    # Person-based face storage
+│   ├── marc/                 # Marc's source faces
+│   │   ├── face_20251028_abc123.jpg
+│   │   └── face_20251028_def456.jpg
+│   ├── alice/                # Alice's source faces
+│   │   └── face_20251028_xyz789.jpg
+│   └── john/                 # John's source faces
+│       └── face_20251028_qrs123.jpg
+├── settings/                 # Processing settings profiles
+├── presets/                  # Person + settings combinations
+├── queues/                   # Processing queues
+│   ├── queue_uuid1.json
+│   └── queue_uuid2.json
+├── test_images/              # Reference images for preview
+│   ├── test_orientation_000.jpg
+│   ├── test_orientation_045.jpg
+│   └── ...
+├── metadata.json             # Repository metadata
+└── gpu_config.json           # GPU configuration
+
+```
+
+## Advanced Features
+
+### 3D Pose Estimation
+
+The system uses 68-point facial landmarks to estimate full 3D head pose:
+- **Pitch**: Up/down rotation (-90° to 90°)
+- **Yaw**: Left/right rotation (-90° to 90°)
+- **Tilt**: Head rotation (-180° to 180°)
+
+Faces with extreme poses are automatically rejected to ensure quality.
+
+### Occlusion Detection
+
+The system detects facial occlusions and identifies:
+- Out-of-bounds landmarks
+- Clustered landmarks (occlusion indicators)
+- Critical region occlusion (eyes, nose)
+
+Faces with critical occlusions are automatically rejected.
+
+### Quality Thresholds
+
+Default thresholds ensure high-quality faces:
+- Minimum resolution: 256x256
+- Minimum sharpness: 0.3
+- Minimum detector score: 0.5
+- Brightness range: 0.2-0.9
+- Minimum contrast: 0.1
+- Minimum overall quality: 0.4
+
+### FaceFusion Integration
+
+The queue system provides complete FaceFusion destination selection:
+- **Face Selector Modes**: reference, one, many, best-quality, all
+- **Face Index**: Select specific face in destination
+- **Reference Distance**: Threshold for reference matching
+- **Settings Profiles**: Reusable processing configurations
 
 ## Usage Examples
 
-### Example 1: Building a Complete Repository
+### Example 1: Building a Complete Repository for a Person
 
 ```bash
 # Initialize
 python facefusion_repo_cli.py init
 
-# Add frontal view
-python facefusion_repo_cli.py add --source alice_front.jpg --name "Alice Front" --tags alice,frontal
+# Create test images from reference photos
+python facefusion_repo_cli.py create-test-images --source-dir ./reference_photos
+
+# Add frontal view with preview
+python facefusion_repo_cli.py add \
+  --source marc_front.jpg \
+  --person "marc" \
+  --name "frontal" \
+  --tags frontal,high-quality \
+  --preview
 
 # Add profile views
-python facefusion_repo_cli.py add --source alice_left.jpg --name "Alice Left" --tags alice,profile
-python facefusion_repo_cli.py add --source alice_right.jpg --name "Alice Right" --tags alice,profile
+python facefusion_repo_cli.py add \
+  --source marc_left.jpg \
+  --person "marc" \
+  --name "left_profile" \
+  --tags profile
 
-# Check coverage
-python facefusion_repo_cli.py stats
+python facefusion_repo_cli.py add \
+  --source marc_right.jpg \
+  --person "marc" \
+  --name "right_profile" \
+  --tags profile
+
+# Check coverage for Marc
+python facefusion_repo_cli.py stats --person "marc"
 ```
 
-### Example 2: Managing Faces
+### Example 2: GPU Configuration
 
 ```bash
-# Show face details
-python facefusion_repo_cli.py show --face-id face_20251028_abc123
+# Check available GPUs
+python facefusion_repo_cli.py gpu-status
 
-# Remove a face
-python facefusion_repo_cli.py remove --face-id face_20251028_abc123
+# Enable GPU with memory limit
+python facefusion_repo_cli.py gpu-configure --enable --memory-limit 8192
 
-# List specific person's faces
-python facefusion_repo_cli.py list --tags alice
+# Verify configuration
+python facefusion_repo_cli.py gpu-status
+```
+
+### Example 3: Queue-Based Processing
+
+```bash
+# List Marc's faces to get face ID
+python facefusion_repo_cli.py list --person "marc"
+
+# Create queue for video processing with best-quality selector
+python facefusion_repo_cli.py create-queue \
+  --person "marc" \
+  --face-id "face_20251028_abc123" \
+  --destination "/path/to/video.mp4" \
+  --face-selector "best-quality" \
+  --settings "high-quality"
+
+# Create queue for image with specific face index
+python facefusion_repo_cli.py create-queue \
+  --person "alice" \
+  --face-id "face_20251028_xyz789" \
+  --destination "/path/to/group_photo.jpg" \
+  --face-selector "one" \
+  --face-index 2
+
+# View all queues
+python facefusion_repo_cli.py list-queues
+
+# Check queue statistics
+python facefusion_repo_cli.py queue-stats
+```
+
+### Example 4: Managing Multiple People
+
+```bash
+# Add faces for different people
+python facefusion_repo_cli.py add --source alice.jpg --person "alice"
+python facefusion_repo_cli.py add --source bob.jpg --person "bob"
+python facefusion_repo_cli.py add --source charlie.jpg --person "charlie"
+
+# List all people
+python facefusion_repo_cli.py people
+
+# View faces for specific person
+python facefusion_repo_cli.py list --person "alice"
+
+# Compare statistics
+python facefusion_repo_cli.py stats --person "alice"
+python facefusion_repo_cli.py stats --person "bob"
 ```
 
 ## Quality Requirements
