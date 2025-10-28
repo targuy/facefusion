@@ -294,7 +294,7 @@ Planned for future releases:
 7. `facefusion_repository/destination/README.md`
 8. Three test files in `tests/test_repository/`
 
-### Modified Files (2)
+### Modified Files (3)
 1. `facefusion_repository/cli/commands.py` - Added 6 new commands
 2. `facefusion_repo_cli.py` - Added command routing
 3. `facefusion_repository/MANUAL.md` - Added Module 2 documentation
