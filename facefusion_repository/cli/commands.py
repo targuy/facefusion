@@ -283,6 +283,32 @@ def cmd_repo_show(args: argparse.Namespace) -> int:
     print('File: {}'.format(face.file_path))
     print('Orientation: {}°'.format(face.orientation_angle))
     print()
+    
+    # Display 3D pose if available
+    if face.pitch is not None or face.yaw is not None or face.tilt is not None:
+        print('3D Pose:')
+        if face.pitch is not None:
+            print('  Pitch (up/down): {:.1f}°'.format(face.pitch))
+        if face.yaw is not None:
+            print('  Yaw (left/right): {:.1f}°'.format(face.yaw))
+        if face.tilt is not None:
+            print('  Tilt (rotation): {:.1f}°'.format(face.tilt))
+        print()
+    
+    # Display occlusion info if available
+    if face.occlusion_score is not None:
+        print('Occlusion:')
+        print('  Score: {:.2f}'.format(face.occlusion_score))
+        if face.occlusion_score == 0:
+            print('  Status: No occlusion detected')
+        elif face.occlusion_score < 0.3:
+            print('  Status: Minor occlusion')
+        elif face.occlusion_score < 0.6:
+            print('  Status: Moderate occlusion')
+        else:
+            print('  Status: Severe occlusion')
+        print()
+    
     print('Quality Metrics:')
     print('  Resolution: {}x{}'.format(face.quality_metrics.resolution[0], face.quality_metrics.resolution[1]))
     print('  Sharpness: {:.3f}'.format(face.quality_metrics.sharpness))

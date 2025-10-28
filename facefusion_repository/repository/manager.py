@@ -12,6 +12,8 @@ from typing import Dict, List, Optional
 
 from facefusion_repository.repository.orientation_matcher import OrientationMatcher
 from facefusion_repository.repository.quality_assessor import QualityAssessor
+from facefusion_repository.orientation.pose_estimator import PoseEstimator
+from facefusion_repository.orientation.occlusion_detector import OcclusionDetector
 from facefusion_repository.types import (
     DEFAULT_QUALITY_THRESHOLDS,
     FaceEntry,
@@ -217,8 +219,29 @@ class RepositoryManager:
                 print(f'Quality metrics: {quality_metrics}')
                 return None
 
-            # Get orientation angle
-            orientation_angle = OrientationMatcher.get_closest_standard_angle(face.angle)
+            # Estimate 3D pose
+            pose = PoseEstimator.estimate_pose(face)
+            
+            # Check if pose is acceptable (not too extreme)
+            if pose and not PoseEstimator.is_pose_acceptable(pose):
+                print(f'Face pose too extreme for {person} in image: {image_path}')
+                print(f'Pose: pitch={pose.pitch:.1f}°, yaw={pose.yaw:.1f}°, tilt={pose.tilt:.1f}°')
+                return None
+
+            # Detect occlusion
+            occlusion_info = OcclusionDetector.detect_occlusion(face, vision_frame.shape)
+            
+            # Check if face is usable despite occlusion
+            if not OcclusionDetector.is_face_usable(occlusion_info):
+                print(f'Face has critical occlusion for {person} in image: {image_path}')
+                print(f'Occlusion: {OcclusionDetector.get_occlusion_summary(occlusion_info)}')
+                return None
+
+            # Get orientation angle (from pose if available, otherwise from face.angle)
+            if pose:
+                orientation_angle = PoseEstimator.get_orientation_angle_from_pose(pose)
+            else:
+                orientation_angle = OrientationMatcher.get_closest_standard_angle(face.angle)
 
             # Check for similar orientation faces for this person (potential duplicates)
             person_faces = [
@@ -272,7 +295,11 @@ class RepositoryManager:
                     person=person,
                     name=name,
                     tags=tags or []
-                )
+                ),
+                pitch=pose.pitch if pose else None,
+                yaw=pose.yaw if pose else None,
+                tilt=pose.tilt if pose else None,
+                occlusion_score=occlusion_info.score
             )
 
             # Add to repository
