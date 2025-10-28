@@ -6,7 +6,10 @@ The Repository System provides person-based face management for FaceFusion, allo
 
 - **Person Management**: Create, list, and remove persons with associated face images
 - **Face Storage**: Automatic organization and storage of face images by person
+- **Quality Assessment**: Multi-metric quality evaluation (sharpness, brightness, contrast, resolution)
+- **Pose-Aware Selection**: 3D pose-based face matching with configurable tolerance
 - **Fallback Selection**: Define fallback persons when primary person not found
+- **Settings Management**: Save and reuse processing configurations
 - **GUI Integration**: Visual interface for managing persons and selecting faces
 - **CLI Support**: Complete command-line interface for all operations
 
@@ -21,6 +24,24 @@ python facefusion.py repo-add \
     --person "Marie" \
     --face-paths face1.jpg face2.jpg face3.jpg
 ```
+
+#### With Quality Filtering
+
+Filter faces by quality threshold during addition:
+
+```bash
+python facefusion.py repo-add \
+    --person "Marie" \
+    --face-paths face1.jpg face2.jpg face3.jpg face4.jpg \
+    --quality-threshold 0.7
+```
+
+Only faces with quality score >= 0.7 will be added. Quality metrics include:
+- **Sharpness**: Laplacian variance-based sharpness detection
+- **Brightness**: Optimal luminance analysis
+- **Contrast**: Standard deviation-based contrast measurement
+- **Resolution**: Native resolution scoring
+- **Overall**: Weighted combination of all metrics
 
 ### Listing Persons in Repository
 
@@ -58,6 +79,69 @@ python facefusion.py repo-execute \
     --processors face_swapper
 ```
 
+#### Face Selector Modes
+
+Control how faces are selected from the repository:
+
+```bash
+# Use best quality face only
+python facefusion.py repo-execute \
+    --person "Marie" \
+    --face-selector-mode "best-quality" \
+    --target video.mp4 \
+    --output result.mp4 \
+    --processors face_swapper
+
+# Use all faces from person
+python facefusion.py repo-execute \
+    --person "Marie" \
+    --face-selector-mode "all" \
+    --target video.mp4 \
+    --output result.mp4 \
+    --processors face_swapper
+
+# Use first face only
+python facefusion.py repo-execute \
+    --person "Marie" \
+    --face-selector-mode "first" \
+    --target video.mp4 \
+    --output result.mp4 \
+    --processors face_swapper
+```
+
+Available modes:
+- **best-quality**: Select the highest quality face only
+- **all**: Use all faces from the person (default)
+- **first**: Use only the first face
+
+#### With Quality Filtering
+
+Filter faces by quality during execution:
+
+```bash
+python facefusion.py repo-execute \
+    --person "Marie" \
+    --quality-threshold 0.8 \
+    --target video.mp4 \
+    --output result.mp4 \
+    --processors face_swapper
+```
+
+#### With Pose-Aware Selection
+
+Match faces by 3D orientation (pitch, yaw, roll):
+
+```bash
+python facefusion.py repo-execute \
+    --person "Marie" \
+    --orientation-tolerance 15.0 \
+    --target video.mp4 \
+    --output result.mp4 \
+    --processors face_swapper
+```
+
+The `orientation-tolerance` parameter specifies maximum angular difference in degrees for pose matching.
+
 ### Using Fallback Persons
 
 Define fallback persons if the primary person is not found:
@@ -79,14 +163,59 @@ The repository system supports all FaceFusion face selection parameters:
 python facefusion.py repo-execute \
     --person "Marie" \
     --fallback-persons "Alice" \
+    --face-selector-mode "best-quality" \
+    --quality-threshold 0.8 \
+    --orientation-tolerance 15.0 \
     --target video.mp4 \
     --output result.mp4 \
     --processors face_swapper \
-    --face-selector-mode "best-quality" \
     --face-detector-model "retinaface" \
     --face-detector-score 0.6 \
     --reference-face-distance 0.5 \
     --face-mask-types "box" "region"
+```
+
+### Settings Profile Management
+
+Save and reuse processing configurations with settings profiles.
+
+#### List Available Profiles
+
+```bash
+python facefusion.py repo-settings-list
+```
+
+Built-in profiles:
+- **high_quality**: High quality processing with best results
+- **fast_processing**: Fast processing with good quality balance  
+- **gpu_optimized**: Optimized for GPU processing
+
+#### Show Profile Details
+
+```bash
+python facefusion.py repo-settings-show --profile-name "high_quality"
+```
+
+#### Export Profile to File
+
+```bash
+python facefusion.py repo-settings-export \
+    --profile-name "high_quality" \
+    --settings-file my_settings.json
+```
+
+#### Import Profile from File
+
+```bash
+python facefusion.py repo-settings-import \
+    --profile-name "custom_profile" \
+    --settings-file my_settings.json
+```
+
+#### Delete Profile
+
+```bash
+python facefusion.py repo-settings-delete --profile-name "custom_profile"
 ```
 
 #### Face Selector Modes
@@ -193,9 +322,11 @@ python facefusion.py repo-add \
 ### Face Image Quality
 
 - Use high-resolution images (at least 512x512 pixels)
-- Include multiple angles and expressions
+- Include multiple angles and expressions for pose-aware selection
 - Ensure good lighting and clear facial features
 - Avoid heavily edited or filtered images
+- Quality threshold of 0.7-0.8 is recommended for production use
+- Add 5-10 faces with varying poses for optimal coverage
 
 ### Person Organization
 

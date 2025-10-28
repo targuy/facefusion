@@ -56,7 +56,7 @@ def route(args : Args) -> None:
 	if system_memory_limit and system_memory_limit > 0:
 		limit_system_memory(system_memory_limit)
 
-	if state_manager.get_item('command') in [ 'repo-add', 'repo-list', 'repo-remove', 'repo-execute' ]:
+	if state_manager.get_item('command') in [ 'repo-add', 'repo-list', 'repo-remove', 'repo-execute', 'repo-settings-list', 'repo-settings-show', 'repo-settings-delete', 'repo-settings-export', 'repo-settings-import' ]:
 		error_code = route_repository(args)
 		hard_exit(error_code)
 
@@ -282,6 +282,84 @@ def route_repository(args : Args) -> ErrorCode:
 		if not common_pre_check() or not processors_pre_check():
 			return 2
 		return process_headless(args)
+	
+	if state_manager.get_item('command') == 'repo-settings-list':
+		from facefusion_repository.settings import SettingsManager
+		
+		settings_manager = SettingsManager(repository_path)
+		profiles = settings_manager.list_profiles()
+		
+		if profiles:
+			logger.info("Settings profiles:", __name__)
+			for profile_name in profiles:
+				profile = settings_manager.get_profile(profile_name)
+				description = profile.get('description', '') if profile else ''
+				logger.info(f"  - {profile_name}: {description}", __name__)
+			return 0
+		else:
+			logger.info("No settings profiles found", __name__)
+			return 0
+	
+	if state_manager.get_item('command') == 'repo-settings-show':
+		from facefusion_repository.settings import SettingsManager
+		
+		settings_manager = SettingsManager(repository_path)
+		profile_name = state_manager.get_item('profile_name')
+		
+		profile = settings_manager.get_profile(profile_name)
+		if profile:
+			logger.info(f"Profile: {profile_name}", __name__)
+			logger.info(f"Description: {profile.get('description', 'N/A')}", __name__)
+			logger.info("Settings:", __name__)
+			import json
+			settings_json = json.dumps(profile.get('settings', {}), indent=2)
+			for line in settings_json.split('\n'):
+				logger.info(f"  {line}", __name__)
+			return 0
+		else:
+			logger.error(f"Profile '{profile_name}' not found", __name__)
+			return 1
+	
+	if state_manager.get_item('command') == 'repo-settings-delete':
+		from facefusion_repository.settings import SettingsManager
+		
+		settings_manager = SettingsManager(repository_path)
+		profile_name = state_manager.get_item('profile_name')
+		
+		if settings_manager.delete_profile(profile_name):
+			logger.info(f"Deleted profile '{profile_name}'", __name__)
+			return 0
+		else:
+			logger.error(f"Failed to delete profile '{profile_name}' (not found or protected)", __name__)
+			return 1
+	
+	if state_manager.get_item('command') == 'repo-settings-export':
+		from facefusion_repository.settings import SettingsManager
+		
+		settings_manager = SettingsManager(repository_path)
+		profile_name = state_manager.get_item('profile_name')
+		settings_file = state_manager.get_item('settings_file')
+		
+		if settings_manager.export_profile(profile_name, settings_file):
+			logger.info(f"Exported profile '{profile_name}' to {settings_file}", __name__)
+			return 0
+		else:
+			logger.error(f"Failed to export profile '{profile_name}'", __name__)
+			return 1
+	
+	if state_manager.get_item('command') == 'repo-settings-import':
+		from facefusion_repository.settings import SettingsManager
+		
+		settings_manager = SettingsManager(repository_path)
+		profile_name = state_manager.get_item('profile_name')
+		settings_file = state_manager.get_item('settings_file')
+		
+		if settings_manager.import_profile(profile_name, settings_file):
+			logger.info(f"Imported profile '{profile_name}' from {settings_file}", __name__)
+			return 0
+		else:
+			logger.error(f"Failed to import profile '{profile_name}'", __name__)
+			return 1
 	
 	return 1
 
