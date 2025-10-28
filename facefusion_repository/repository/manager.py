@@ -16,6 +16,7 @@ from facefusion_repository.types import (
     DEFAULT_QUALITY_THRESHOLDS,
     FaceEntry,
     FaceMetadata,
+    PersonEntry,
     QualityThresholds,
     RepositoryStats
 )
@@ -39,33 +40,54 @@ class RepositoryManager:
 
         self.repository_path = Path(repository_path)
         self.repository_file = self.repository_path / 'repository.json'
+        self.metadata_file = self.repository_path / 'metadata.json'
         self.faces_dir = self.repository_path / 'faces'
+        self.settings_dir = self.repository_path / 'settings'
+        self.presets_dir = self.repository_path / 'presets'
+        self.queues_dir = self.repository_path / 'queues'
+        self.test_images_dir = self.repository_path / 'test_images'
 
         self._faces: Dict[str, FaceEntry] = {}
+        self._people: Dict[str, PersonEntry] = {}
         self._loaded = False
 
     def initialize_repository(self) -> bool:
         """
-        Create new repository structure.
+        Create new repository structure with person-based directories.
 
         Returns:
             True if initialization successful
         """
         try:
-            # Create directories
+            # Create main directories
             self.repository_path.mkdir(parents=True, exist_ok=True)
             self.faces_dir.mkdir(parents=True, exist_ok=True)
+            self.settings_dir.mkdir(parents=True, exist_ok=True)
+            self.presets_dir.mkdir(parents=True, exist_ok=True)
+            self.queues_dir.mkdir(parents=True, exist_ok=True)
+            self.test_images_dir.mkdir(parents=True, exist_ok=True)
 
-            # Create empty repository file if it doesn't exist
+            # Create repository file if it doesn't exist
             if not self.repository_file.exists():
                 repository_data = {
-                    'version': '1.0.0',
+                    'version': '2.0.0',  # Version 2.0 for person-based architecture
                     'created_date': datetime.utcnow().isoformat() + 'Z',
                     'last_modified': datetime.utcnow().isoformat() + 'Z',
+                    'people': [],
                     'faces': []
                 }
                 with open(self.repository_file, 'w', encoding='utf-8') as f:
                     json.dump(repository_data, f, indent=2)
+            
+            # Create metadata file if it doesn't exist
+            if not self.metadata_file.exists():
+                metadata = {
+                    'version': '2.0.0',
+                    'architecture': 'person-based',
+                    'created_date': datetime.utcnow().isoformat() + 'Z'
+                }
+                with open(self.metadata_file, 'w', encoding='utf-8') as f:
+                    json.dump(metadata, f, indent=2)
 
             return True
         except Exception as e:
@@ -74,7 +96,7 @@ class RepositoryManager:
 
     def _load_repository(self) -> bool:
         """
-        Load repository from disk.
+        Load repository from disk (supports both v1 and v2 formats).
 
         Returns:
             True if load successful
@@ -89,6 +111,13 @@ class RepositoryManager:
             with open(self.repository_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
+            # Load people (v2 format)
+            self._people = {}
+            for person_data in data.get('people', []):
+                person_entry = PersonEntry.from_dict(person_data)
+                self._people[person_entry.id] = person_entry
+
+            # Load faces
             self._faces = {}
             for face_data in data.get('faces', []):
                 face_entry = FaceEntry.from_dict(face_data)
@@ -102,7 +131,7 @@ class RepositoryManager:
 
     def _save_repository(self) -> bool:
         """
-        Save repository to disk.
+        Save repository to disk (v2 format with people).
 
         Returns:
             True if save successful
@@ -114,12 +143,17 @@ class RepositoryManager:
                     data = json.load(f)
             else:
                 data = {
-                    'version': '1.0.0',
+                    'version': '2.0.0',
                     'created_date': datetime.utcnow().isoformat() + 'Z'
                 }
 
-            # Update faces and modification time
+            # Update last modified
             data['last_modified'] = datetime.utcnow().isoformat() + 'Z'
+
+            # Save people
+            data['people'] = [person.to_dict() for person in self._people.values()]
+
+            # Save faces
             data['faces'] = [face.to_dict() for face in self._faces.values()]
 
             # Write to file
@@ -131,19 +165,133 @@ class RepositoryManager:
             print(f'Error saving repository: {e}')
             return False
 
+    def add_person(self, person_id: str, display_name: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """
+        Add a new person to the repository.
+
+        Args:
+            person_id: Unique identifier for the person (alphanumeric, no spaces)
+            display_name: Human-readable name for the person
+            metadata: Optional additional metadata
+
+        Returns:
+            True if successful, False otherwise
+        """
+        # Load repository
+        if not self._load_repository():
+            if not self.initialize_repository():
+                return False
+            self._load_repository()
+
+        # Validate person_id format (alphanumeric and underscores only)
+        import re
+        if not re.match(r'^[a-zA-Z0-9_]+$', person_id):
+            print(f'Invalid person_id: {person_id}. Must be alphanumeric with underscores only.')
+            return False
+
+        # Check if person already exists
+        if person_id in self._people:
+            print(f'Person with id "{person_id}" already exists.')
+            return False
+
+        try:
+            # Create person directory
+            person_dir = self.faces_dir / person_id
+            person_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create person entry
+            person = PersonEntry(
+                id=person_id,
+                display_name=display_name,
+                face_ids=[],
+                created_date=datetime.utcnow().isoformat() + 'Z',
+                last_modified=datetime.utcnow().isoformat() + 'Z',
+                metadata=metadata or {}
+            )
+
+            self._people[person_id] = person
+            return self._save_repository()
+        except Exception as e:
+            print(f'Error adding person: {e}')
+            return False
+
+    def get_person(self, person_id: str) -> Optional[PersonEntry]:
+        """
+        Get a person by ID.
+
+        Args:
+            person_id: Person identifier
+
+        Returns:
+            PersonEntry if found, None otherwise
+        """
+        if not self._load_repository():
+            return None
+        return self._people.get(person_id)
+
+    def list_people(self) -> List[PersonEntry]:
+        """
+        List all people in the repository.
+
+        Returns:
+            List of PersonEntry objects
+        """
+        if not self._load_repository():
+            return []
+        return list(self._people.values())
+
+    def remove_person(self, person_id: str, remove_faces: bool = True) -> bool:
+        """
+        Remove a person from the repository.
+
+        Args:
+            person_id: Person identifier
+            remove_faces: If True, also remove all faces for this person
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self._load_repository():
+            return False
+
+        person = self._people.get(person_id)
+        if not person:
+            print(f'Person not found: {person_id}')
+            return False
+
+        try:
+            # Remove faces if requested
+            if remove_faces:
+                for face_id in person.face_ids[:]:  # Copy list to avoid modification during iteration
+                    self.remove_face(face_id)
+
+            # Remove person directory
+            person_dir = self.faces_dir / person_id
+            if person_dir.exists():
+                shutil.rmtree(person_dir)
+
+            # Remove person entry
+            del self._people[person_id]
+            return self._save_repository()
+        except Exception as e:
+            print(f'Error removing person: {e}')
+            return False
+
     def add_face(
         self,
         image_path: str,
+        person_id: str,  # Now MANDATORY
         name: Optional[str] = None,
         tags: Optional[List[str]] = None,
         quality_thresholds: Optional[QualityThresholds] = None
     ) -> Optional[str]:
         """
-        Add new face to repository.
+        Add new face to repository for a specific person.
 
         Args:
             image_path: Path to face image
-            name: Optional name for the face
+            person_id: Person this face belongs to (MANDATORY)
+            name: Optional descriptive name for this specific face
             tags: Optional tags for categorization
             quality_thresholds: Optional custom quality thresholds
 
@@ -155,6 +303,12 @@ class RepositoryManager:
             if not self.initialize_repository():
                 return None
             self._load_repository()
+
+        # Ensure person exists, create if not
+        if person_id not in self._people:
+            print(f'Person "{person_id}" does not exist. Creating person...')
+            if not self.add_person(person_id, person_id):  # Use person_id as display name
+                return None
 
         # Use default thresholds if not provided
         if quality_thresholds is None:
@@ -188,10 +342,10 @@ class RepositoryManager:
             # Get orientation angle
             orientation_angle = OrientationMatcher.get_closest_standard_angle(face.angle)
 
-            # Check for similar orientation faces (potential duplicates)
+            # Check for similar orientation faces (potential duplicates) within same person
             similar_faces = [
                 f for f in self._faces.values()
-                if OrientationMatcher.is_orientation_similar(f.orientation_angle, orientation_angle)
+                if f.metadata.person_id == person_id and OrientationMatcher.is_orientation_similar(f.orientation_angle, orientation_angle)
             ]
 
             # If similar faces exist, only keep the highest quality one
@@ -209,9 +363,11 @@ class RepositoryManager:
             # Generate unique ID
             face_id = f'face_{datetime.utcnow().strftime("%Y%m%d")}_{uuid.uuid4().hex[:8]}'
 
-            # Copy image to repository
+            # Copy image to person directory
             image_filename = f'{face_id}{Path(image_path).suffix}'
-            dest_path = self.faces_dir / image_filename
+            person_dir = self.faces_dir / person_id
+            person_dir.mkdir(parents=True, exist_ok=True)
+            dest_path = person_dir / image_filename
 
             shutil.copy2(image_path, dest_path)
 
@@ -228,6 +384,7 @@ class RepositoryManager:
                 },
                 metadata=FaceMetadata(
                     added_date=datetime.utcnow().isoformat() + 'Z',
+                    person_id=person_id,
                     name=name,
                     tags=tags or []
                 )
@@ -236,11 +393,16 @@ class RepositoryManager:
             # Add to repository
             self._faces[face_id] = face_entry
 
+            # Update person entry
+            person = self._people[person_id]
+            person.face_ids.append(face_id)
+            person.last_modified = datetime.utcnow().isoformat() + 'Z'
+
             # Save
             if not self._save_repository():
                 return None
 
-            print(f'Successfully added face: {face_id}')
+            print(f'Successfully added face: {face_id} for person: {person_id}')
             return face_id
 
         except Exception as e:
@@ -300,7 +462,7 @@ class RepositoryManager:
 
     def remove_face(self, face_id: str) -> bool:
         """
-        Remove face from repository.
+        Remove face from repository and update person entry.
 
         Args:
             face_id: Face identifier
@@ -316,10 +478,20 @@ class RepositoryManager:
             return False
 
         try:
-            # Remove image file
+            # Get face entry
             face_entry = self._faces[face_id]
+            
+            # Remove image file
             if os.path.exists(face_entry.file_path):
                 os.remove(face_entry.file_path)
+
+            # Update person entry
+            person_id = face_entry.metadata.person_id
+            if person_id in self._people:
+                person = self._people[person_id]
+                if face_id in person.face_ids:
+                    person.face_ids.remove(face_id)
+                person.last_modified = datetime.utcnow().isoformat() + 'Z'
 
             # Remove from dictionary
             del self._faces[face_id]
@@ -365,7 +537,7 @@ class RepositoryManager:
 
     def get_statistics(self) -> Optional[RepositoryStats]:
         """
-        Get repository statistics.
+        Get repository statistics including person-based metrics.
 
         Returns:
             RepositoryStats object or None
@@ -378,7 +550,9 @@ class RepositoryManager:
         if not faces:
             return RepositoryStats(
                 total_faces=0,
+                total_people=len(self._people),
                 faces_by_orientation={},
+                faces_by_person={},
                 average_quality=0.0,
                 total_size_mb=0.0,
                 unique_names=0
@@ -389,6 +563,12 @@ class RepositoryManager:
         for face in faces:
             angle = face.orientation_angle
             faces_by_orientation[angle] = faces_by_orientation.get(angle, 0) + 1
+
+        # Count faces by person
+        faces_by_person: Dict[str, int] = {}
+        for face in faces:
+            person_id = face.metadata.person_id
+            faces_by_person[person_id] = faces_by_person.get(person_id, 0) + 1
 
         # Calculate average quality
         total_quality = sum(f.quality_metrics.overall_quality for f in faces)
@@ -406,7 +586,9 @@ class RepositoryManager:
 
         return RepositoryStats(
             total_faces=len(faces),
+            total_people=len(self._people),
             faces_by_orientation=faces_by_orientation,
+            faces_by_person=faces_by_person,
             average_quality=average_quality,
             total_size_mb=total_size_mb,
             unique_names=unique_names

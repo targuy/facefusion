@@ -12,8 +12,10 @@ import sys
 from facefusion import state_manager
 from facefusion_repository.cli.commands import (
     cmd_repo_add_face,
+    cmd_repo_add_person,
     cmd_repo_init,
     cmd_repo_list,
+    cmd_repo_people,
     cmd_repo_remove,
     cmd_repo_show,
     cmd_repo_stats
@@ -29,7 +31,7 @@ def create_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         prog='facefusion_repo',
-        description='FaceFusion Repository System - Manage source faces with orientation-based matching',
+        description='FaceFusion Repository System - Person-based face management with orientation matching',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
@@ -42,10 +44,31 @@ def create_parser() -> argparse.ArgumentParser:
         help='Initialize face repository'
     )
 
-    # repo-add-face
+    # people (NEW)
+    parser_people = subparsers.add_parser(
+        'people',
+        help='List all people in repository'
+    )
+
+    # add-person (NEW)
+    parser_add_person = subparsers.add_parser(
+        'add-person',
+        help='Add a new person to repository'
+    )
+    parser_add_person.add_argument(
+        '--person',
+        required=True,
+        help='Person identifier (alphanumeric, no spaces)'
+    )
+    parser_add_person.add_argument(
+        '--display-name',
+        help='Human-readable name (defaults to person id)'
+    )
+
+    # repo-add-face (UPDATED)
     parser_add = subparsers.add_parser(
         'add',
-        help='Add face to repository'
+        help='Add face to repository for a person'
     )
     parser_add.add_argument(
         '--source',
@@ -53,18 +76,27 @@ def create_parser() -> argparse.ArgumentParser:
         help='Path to face image'
     )
     parser_add.add_argument(
+        '--person',
+        required=True,
+        help='Person this face belongs to'
+    )
+    parser_add.add_argument(
         '--name',
-        help='Name for the face'
+        help='Optional descriptive name for this specific face'
     )
     parser_add.add_argument(
         '--tags',
         help='Comma-separated tags'
     )
 
-    # repo-list
+    # repo-list (UPDATED)
     parser_list = subparsers.add_parser(
         'list',
         help='List faces in repository'
+    )
+    parser_list.add_argument(
+        '--person',
+        help='Filter by person'
     )
     parser_list.add_argument(
         '--orientation',
@@ -135,6 +167,8 @@ def main() -> int:
     # Route to appropriate command
     command_map = {
         'init': cmd_repo_init,
+        'people': cmd_repo_people,
+        'add-person': cmd_repo_add_person,
         'add': cmd_repo_add_face,
         'list': cmd_repo_list,
         'show': cmd_repo_show,
