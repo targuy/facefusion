@@ -182,10 +182,17 @@ def route_repository(args : Args) -> ErrorCode:
 	if state_manager.get_item('command') == 'repo-add':
 		person_name = state_manager.get_item('person')
 		face_paths = state_manager.get_item('face_paths')
+		quality_threshold = state_manager.get_item('quality_threshold')
 		
 		try:
-			person = manager.create_person(person_name, face_paths)
+			person = manager.create_person(
+				person_name,
+				face_paths,
+				quality_threshold=quality_threshold
+			)
 			logger.info(f"Added person '{person_name}' with {person['face_count']} faces", __name__)
+			if quality_threshold is not None:
+				logger.info(f"Applied quality threshold: {quality_threshold}", __name__)
 			return 0
 		except Exception as e:
 			logger.error(f"Failed to add person: {str(e)}", __name__)
@@ -222,6 +229,8 @@ def route_repository(args : Args) -> ErrorCode:
 		
 		person_name = state_manager.get_item('person')
 		fallback_persons_str = state_manager.get_item('fallback_persons')
+		quality_threshold = state_manager.get_item('quality_threshold')
+		face_selector_mode = state_manager.get_item('face_selector_mode') or 'all'
 		
 		# Parse fallback persons
 		fallback_persons = None
@@ -230,8 +239,34 @@ def route_repository(args : Args) -> ErrorCode:
 		
 		selector = RepositorySelector(manager)
 		
-		# Get faces for the person with fallback
-		face_paths = selector.select_faces_for_person(person_name, fallback_persons)
+		# Get faces for the person with fallback and quality filtering
+		if face_selector_mode == 'best-quality':
+			# Get only the best quality face
+			best_face = selector.get_best_person_face(person_name, quality_threshold)
+			face_paths = [best_face] if best_face else []
+			
+			# Try fallback if no face found
+			if not face_paths and fallback_persons:
+				for fallback_name in fallback_persons:
+					best_face = selector.get_best_person_face(fallback_name, quality_threshold)
+					if best_face:
+						face_paths = [best_face]
+						person_name = fallback_name  # Update for logging
+						break
+		elif face_selector_mode == 'first':
+			# Get first face only
+			person = manager.get_person_by_name(person_name)
+			if person and person['face_paths']:
+				face_paths = [person['face_paths'][0]]
+			else:
+				face_paths = []
+		else:
+			# Get all faces with optional quality filtering
+			face_paths = selector.select_faces_for_person(
+				person_name,
+				fallback_persons,
+				quality_threshold=quality_threshold
+			)
 		
 		if not face_paths:
 			logger.error(f"No faces found for person '{person_name}'", __name__)
@@ -239,7 +274,9 @@ def route_repository(args : Args) -> ErrorCode:
 		
 		# Update source_paths in state manager
 		state_manager.init_item('source_paths', face_paths)
-		logger.info(f"Using {len(face_paths)} face(s) from person '{person_name}'", __name__)
+		logger.info(f"Using {len(face_paths)} face(s) from person '{person_name}' (mode: {face_selector_mode})", __name__)
+		if quality_threshold is not None:
+			logger.info(f"Applied quality threshold: {quality_threshold}", __name__)
 		
 		# Process using existing headless-run logic
 		if not common_pre_check() or not processors_pre_check():
