@@ -50,7 +50,7 @@ The Repository System is integrated with FaceFusion and requires no additional i
 1. **Initialize the Repository**
 
 ```bash
-python facefusion.py repo-init
+python facefusion_repo_cli.py init
 ```
 
 This creates the repository structure at `~/.facefusion_repository/`:
@@ -58,15 +58,16 @@ This creates the repository structure at `~/.facefusion_repository/`:
 ~/.facefusion_repository/
 ├── repository.json      # Repository database
 ├── faces/              # Stored face images
-├── settings/           # Settings profiles
-├── presets.json        # Named presets
+├── queues/             # Processing queues
+├── settings/           # Settings profiles (future)
+├── presets.json        # Named presets (future)
 └── temp/              # Temporary processing files
 ```
 
 2. **Verify Installation**
 
 ```bash
-python facefusion.py repo-stats
+python facefusion_repo_cli.py stats
 ```
 
 You should see output indicating an empty repository.
@@ -113,13 +114,13 @@ The repository stores:
 **Basic Addition**
 
 ```bash
-python facefusion.py repo-add-face --source path/to/face.jpg
+python facefusion_repo_cli.py add --source path/to/face.jpg
 ```
 
 **With Name and Tags**
 
 ```bash
-python facefusion.py repo-add-face \
+python facefusion_repo_cli.py add \
     --source path/to/face.jpg \
     --name "Alice Frontal" \
     --tags frontal,high-quality,main
@@ -144,25 +145,25 @@ If you add a face with a similar orientation to an existing one:
 **List All Faces**
 
 ```bash
-python facefusion.py repo-list
+python facefusion_repo_cli.py list
 ```
 
 **Filter by Orientation**
 
 ```bash
-python facefusion.py repo-list --orientation 0
+python facefusion_repo_cli.py list --orientation 0
 ```
 
 **Filter by Tags**
 
 ```bash
-python facefusion.py repo-list --tags frontal,main
+python facefusion_repo_cli.py list --tags frontal,main
 ```
 
 ### Viewing Face Details
 
 ```bash
-python facefusion.py repo-show --face-id face_20251028_abc123
+python facefusion_repo_cli.py show --face-id face_20251028_abc123
 ```
 
 Output includes:
@@ -175,7 +176,7 @@ Output includes:
 ### Removing Faces
 
 ```bash
-python facefusion.py repo-remove --face-id face_20251028_abc123
+python facefusion_repo_cli.py remove --face-id face_20251028_abc123
 ```
 
 This permanently removes:
@@ -185,7 +186,7 @@ This permanently removes:
 ### Repository Statistics
 
 ```bash
-python facefusion.py repo-stats
+python facefusion_repo_cli.py stats
 ```
 
 Shows:
@@ -915,23 +916,23 @@ For best results, have faces at these critical angles:
 
 **1. Analyze First**
 
-Always analyze target media before processing:
+Always analyze destination media before processing:
 
 ```bash
-python facefusion.py repo-analyze-target --target video.mp4
+python facefusion_repo_cli.py analyze-destination --source video.mp4
 ```
 
 This helps identify:
-- Missing orientations
-- Problematic frames
-- Expected processing time
+- Missing orientations in repository
+- Match rate and confidence
+- Expected processing coverage
 
 **2. Build Complete Repository**
 
 Before processing a video:
-1. Analyze to see what orientations are needed
-2. Add all necessary faces to repository
-3. Verify coverage with `repo-stats`
+1. Analyze to see what orientations are detected
+2. Add necessary faces to repository for those orientations
+3. Verify coverage with `stats` command
 4. Then proceed with matching and batch processing
 
 **3. Process in Stages**
