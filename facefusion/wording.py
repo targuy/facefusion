@@ -237,7 +237,15 @@ WORDING : Dict[str, Any] =\
 		'job_run': 'run a queued job',
 		'job_run_all': 'run all queued jobs',
 		'job_retry': 'retry a failed job',
-		'job_retry_all': 'retry all failed jobs'
+		'job_retry_all': 'retry all failed jobs',
+		# repository
+		'repo_init': 'initialize face repository',
+		'repo_add': 'add face to repository',
+		'repo_list': 'list persons or faces in repository',
+		'repo_source': 'specify the source image path for face',
+		'repo_person': 'specify the person name',
+		'repo_person_optional': 'optionally specify person name to list their faces',
+		'repo_preview': 'preview face quality before adding'
 	},
 	'about':
 	{

@@ -290,6 +290,22 @@ def collect_job_program() -> ArgumentParser:
 	return ArgumentParser(parents = [ create_execution_program(), create_download_providers_program(), create_memory_program(), create_log_level_program() ], add_help = False)
 
 
+def create_repository_add_program() -> ArgumentParser:
+	program = ArgumentParser(add_help = False)
+	group_repository = program.add_argument_group('repository')
+	group_repository.add_argument('-s', '--source', help = wording.get('help.repo_source'), required = True)
+	group_repository.add_argument('-p', '--person', help = wording.get('help.repo_person'), required = True)
+	group_repository.add_argument('--preview', help = wording.get('help.repo_preview'), action = 'store_true')
+	return program
+
+
+def create_repository_list_program() -> ArgumentParser:
+	program = ArgumentParser(add_help = False)
+	group_repository = program.add_argument_group('repository')
+	group_repository.add_argument('-p', '--person', help = wording.get('help.repo_person_optional'))
+	return program
+
+
 def create_program() -> ArgumentParser:
 	program = ArgumentParser(formatter_class = create_help_formatter_large, add_help = False)
 	program._positionals.title = 'commands'
@@ -317,6 +333,10 @@ def create_program() -> ArgumentParser:
 	sub_program.add_parser('job-run-all', help = wording.get('help.job_run_all'), parents = [ create_config_path_program(), create_temp_path_program(), create_jobs_path_program(), collect_job_program(), create_halt_on_error_program() ], formatter_class = create_help_formatter_large)
 	sub_program.add_parser('job-retry', help = wording.get('help.job_retry'), parents = [ create_job_id_program(), create_config_path_program(), create_temp_path_program(), create_jobs_path_program(), collect_job_program() ], formatter_class = create_help_formatter_large)
 	sub_program.add_parser('job-retry-all', help = wording.get('help.job_retry_all'), parents = [ create_config_path_program(), create_temp_path_program(), create_jobs_path_program(), collect_job_program(), create_halt_on_error_program() ], formatter_class = create_help_formatter_large)
+	# repository
+	sub_program.add_parser('repo-init', help = wording.get('help.repo_init'), parents = [ create_log_level_program() ], formatter_class = create_help_formatter_large)
+	sub_program.add_parser('repo-add', help = wording.get('help.repo_add'), parents = [ create_repository_add_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
+	sub_program.add_parser('repo-list', help = wording.get('help.repo_list'), parents = [ create_repository_list_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
 	return ArgumentParser(parents = [ program ], formatter_class = create_help_formatter_small)
 
 

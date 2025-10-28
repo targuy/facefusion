@@ -389,3 +389,41 @@ State = TypedDict('State',
 ApplyStateItem : TypeAlias = Callable[[Any, Any], None]
 StateSet : TypeAlias = Dict[AppContext, State]
 
+# Repository System Types
+RepositoryPersonId : TypeAlias = str
+RepositoryFaceId : TypeAlias = str
+RepositoryPose3D = TypedDict('RepositoryPose3D',
+{
+	'yaw' : float,
+	'pitch' : float,
+	'roll' : float,
+	'confidence' : float
+})
+RepositoryQualityMetrics = TypedDict('RepositoryQualityMetrics',
+{
+	'sharpness' : float,
+	'brightness' : float,
+	'overall_quality' : float,
+	'has_occlusion' : bool
+})
+RepositoryPersonFace = TypedDict('RepositoryPersonFace',
+{
+	'face_id' : RepositoryFaceId,
+	'person_id' : RepositoryPersonId,
+	'image_path' : str,
+	'face_path' : str,
+	'pose_3d' : RepositoryPose3D,
+	'quality' : RepositoryQualityMetrics,
+	'embedding' : Embedding,
+	'added_date' : str,
+	'tags' : List[str]
+})
+RepositoryEntry = TypedDict('RepositoryEntry',
+{
+	'person_id' : RepositoryPersonId,
+	'person_name' : str,
+	'faces' : List[RepositoryPersonFace],
+	'created_date' : str,
+	'modified_date' : str
+})
+

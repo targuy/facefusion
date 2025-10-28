@@ -100,6 +100,10 @@ def route(args : Args) -> None:
 		error_code = route_job_runner()
 		hard_exit(error_code)
 
+	if state_manager.get_item('command') in [ 'repo-init', 'repo-add', 'repo-list' ]:
+		error_code = route_repository(args)
+		hard_exit(error_code)
+
 
 def pre_check() -> bool:
 	if sys.version_info < (3, 10):
@@ -281,6 +285,63 @@ def route_job_runner() -> ErrorCode:
 		logger.info(wording.get('processing_jobs_failed'), __name__)
 		return 1
 	return 2
+
+
+def route_repository(args : Args) -> ErrorCode:
+	try:
+		from facefusion_repository.cli.repository_cli import RepositoryCLI
+		
+		cli = RepositoryCLI()
+		
+		if state_manager.get_item('command') == 'repo-init':
+			result = cli.init_repository()
+			if result['success']:
+				logger.info(result['message'], __name__)
+				return 0
+			logger.error(result['message'], __name__)
+			return 1
+		
+		if state_manager.get_item('command') == 'repo-add':
+			source = args.get('source')
+			person = args.get('person')
+			preview = args.get('preview', False)
+			
+			if not source or not person:
+				logger.error('Source and person are required', __name__)
+				return 1
+			
+			result = cli.add_face(source, person, preview)
+			if result['success']:
+				logger.info(result['message'], __name__)
+				return 0
+			logger.error(result['message'], __name__)
+			return 1
+		
+		if state_manager.get_item('command') == 'repo-list':
+			person = args.get('person')
+			
+			if person:
+				result = cli.list_faces(person)
+			else:
+				result = cli.list_persons()
+			
+			if result['success']:
+				logger.info(result['message'], __name__)
+				if result['data']:
+					# Pretty print the data
+					import json
+					print(json.dumps(result['data'], indent=2, default=str))
+				return 0
+			logger.error(result['message'], __name__)
+			return 1
+	except ImportError as e:
+		logger.error(f'Repository system not available: {e}', __name__)
+		return 1
+	except Exception as e:
+		logger.error(f'Repository command failed: {e}', __name__)
+		return 1
+	
+	return 1
 
 
 def process_headless(args : Args) -> ErrorCode:
