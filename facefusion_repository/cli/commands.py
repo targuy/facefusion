@@ -6,6 +6,8 @@ import argparse
 
 from facefusion_repository.repository.compatibility_matrix import CompatibilityMatrix
 from facefusion_repository.repository.manager import RepositoryManager
+from facefusion_repository.settings.manager import SettingsManager
+from facefusion_repository.presets.manager import PresetsManager
 
 
 def register_repository_commands(subparsers: argparse._SubParsersAction) -> None:
@@ -120,6 +122,69 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
         help='Show repository statistics'
     )
     parser_stats.set_defaults(func=cmd_repo_stats)
+
+    # repo-settings-create command
+    parser_settings_create = subparsers.add_parser(
+        'repo-settings-create',
+        help='Create a settings profile'
+    )
+    parser_settings_create.add_argument(
+        '--name',
+        required=True,
+        help='Settings profile name'
+    )
+    parser_settings_create.add_argument(
+        '--description',
+        default='',
+        help='Description of the profile'
+    )
+    parser_settings_create.add_argument(
+        '--template',
+        choices=['high_quality', 'fast', 'gpu_accelerated', 'cpu_optimized'],
+        help='Template to base settings on'
+    )
+    parser_settings_create.set_defaults(func=cmd_repo_settings_create)
+
+    # repo-settings-list command
+    parser_settings_list = subparsers.add_parser(
+        'repo-settings-list',
+        help='List all settings profiles'
+    )
+    parser_settings_list.set_defaults(func=cmd_repo_settings_list)
+
+    # repo-presets-create command
+    parser_presets_create = subparsers.add_parser(
+        'repo-presets-create',
+        help='Create a preset combining person and settings'
+    )
+    parser_presets_create.add_argument(
+        '--name',
+        required=True,
+        help='Preset name'
+    )
+    parser_presets_create.add_argument(
+        '--person',
+        required=True,
+        help='Person identifier'
+    )
+    parser_presets_create.add_argument(
+        '--settings',
+        required=True,
+        help='Settings profile name'
+    )
+    parser_presets_create.add_argument(
+        '--description',
+        default='',
+        help='Description of the preset'
+    )
+    parser_presets_create.set_defaults(func=cmd_repo_presets_create)
+
+    # repo-presets-list command
+    parser_presets_list = subparsers.add_parser(
+        'repo-presets-list',
+        help='List all presets'
+    )
+    parser_presets_list.set_defaults(func=cmd_repo_presets_list)
 
 
 def cmd_repo_add_person(args: argparse.Namespace) -> int:
@@ -426,5 +491,138 @@ def cmd_repo_stats(args: argparse.Namespace) -> int:
     if coverage.missing_orientations:
         print(f'\nMissing Orientations: {", ".join(str(a) + "°" for a in coverage.missing_orientations)}')
         print('\nRecommendation: Add faces at missing orientations for complete coverage.')
+
+    return 0
+
+
+def cmd_repo_settings_create(args: argparse.Namespace) -> int:
+    """
+    Create settings profile command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    print(f'Creating settings profile: {args.name}')
+
+    # Build parameters from template
+    parameters = {}
+    
+    settings_manager = SettingsManager()
+    
+    if settings_manager.create_settings(
+        name=args.name,
+        description=args.description,
+        parameters=parameters,
+        template=args.template
+    ):
+        print(f'✓ Settings profile created successfully!')
+        print(f'  Name: {args.name}')
+        if args.template:
+            print(f'  Template: {args.template}')
+        return 0
+    else:
+        print('✗ Failed to create settings profile')
+        return 1
+
+
+def cmd_repo_settings_list(args: argparse.Namespace) -> int:
+    """
+    List settings profiles command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    settings_manager = SettingsManager()
+    profiles = settings_manager.list_settings()
+
+    if not profiles:
+        print('No settings profiles found.')
+        print('Use "repo-settings-create" to create a settings profile.')
+        print('\nAvailable templates:')
+        for template in SettingsManager.list_templates():
+            print(f'  - {template}')
+        return 0
+
+    print(f'Settings Profiles: {len(profiles)}')
+    print()
+
+    for profile in profiles:
+        print(f'  Name: {profile.name}')
+        print(f'    Description: {profile.description or "No description"}')
+        print(f'    Parameters: {len(profile.parameters)} configured')
+        print(f'    Created: {profile.created_date}')
+        print(f'    Modified: {profile.last_modified}')
+        print()
+
+    return 0
+
+
+def cmd_repo_presets_create(args: argparse.Namespace) -> int:
+    """
+    Create preset command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    print(f'Creating preset: {args.name}')
+
+    presets_manager = PresetsManager()
+    
+    if presets_manager.create_preset(
+        name=args.name,
+        description=args.description,
+        person_id=args.person,
+        settings_name=args.settings
+    ):
+        print(f'✓ Preset created successfully!')
+        print(f'  Name: {args.name}')
+        print(f'  Person: {args.person}')
+        print(f'  Settings: {args.settings}')
+        return 0
+    else:
+        print('✗ Failed to create preset')
+        return 1
+
+
+def cmd_repo_presets_list(args: argparse.Namespace) -> int:
+    """
+    List presets command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    presets_manager = PresetsManager()
+    presets = presets_manager.list_presets()
+
+    if not presets:
+        print('No presets found.')
+        print('Use "repo-presets-create" to create a preset.')
+        return 0
+
+    print(f'Presets: {len(presets)}')
+    print()
+
+    for preset in presets:
+        print(f'  Name: {preset.name}')
+        print(f'    Description: {preset.description or "No description"}')
+        print(f'    Person: {preset.person_id}')
+        print(f'    Settings: {preset.settings_name}')
+        print(f'    Usage Count: {preset.usage_count}')
+        if preset.last_used:
+            print(f'    Last Used: {preset.last_used}')
+        print(f'    Created: {preset.created_date}')
+        print()
 
     return 0

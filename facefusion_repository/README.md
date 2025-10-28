@@ -1,18 +1,23 @@
 # FaceFusion Repository System
 
-Advanced face repository management with orientation-based matching for the FaceFusion platform.
+Advanced face repository management with person-based architecture and orientation matching for the FaceFusion platform.
 
 ## Overview
 
-The FaceFusion Repository System extends FaceFusion with sophisticated capabilities for managing multiple source faces at different orientations, enabling high-quality face swaps in videos with varying face angles.
+The FaceFusion Repository System extends FaceFusion with sophisticated capabilities for managing multiple source faces organized by person, enabling high-quality face swaps in videos with varying face angles.
 
 ### Key Features
 
-- **Multi-Orientation Repository**: Store source faces at 8 standard orientation angles (0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°)
-- **Automatic Quality Assessment**: Filter faces based on resolution, sharpness, brightness, and contrast
+- **Person-Based Architecture**: Organize faces by person with mandatory person identifiers
+- **Multi-Orientation Support**: Store faces at various orientation angles (0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°)
+- **Automatic Quality Assessment**: Filter faces based on resolution, sharpness, brightness, contrast, and more
+- **3D Pose Estimation**: Track pitch, yaw, and tilt for advanced orientation matching
+- **Occlusion Detection**: Identify and handle partially obscured faces
 - **Intelligent Matching**: Automatically select the best source face for each destination based on orientation
-- **Duplicate Detection**: Prevents storing redundant faces with similar orientations
-- **Comprehensive Statistics**: Visualize repository coverage and quality metrics
+- **Settings Management**: Create and manage FaceFusion parameter profiles with templates
+- **Presets System**: Combine person + settings for quick execution
+- **Dual Interface**: Full CLI and Gradio GUI support
+- **GPU Acceleration**: Utilize CUDA, DirectML, ROCm, or MPS for faster processing
 
 ## Quick Start
 
@@ -22,29 +27,53 @@ The FaceFusion Repository System extends FaceFusion with sophisticated capabilit
 python facefusion_repo_cli.py init
 ```
 
-This creates the repository structure at `~/.facefusion_repository/`
+This creates the person-based repository structure at `~/.facefusion_repository/`:
+- `faces/` - Person-based face storage (faces/{person}/)
+- `settings/` - FaceFusion parameter profiles
+- `presets/` - Person + settings combinations
+- `queues/` - Processing queues (future)
+- `test_images/` - Preview reference images (future)
+- `metadata.json` - Repository metadata
 
-### 2. Add Faces
+### 2. Add a Person
 
 ```bash
-# Add a face with a name
-python facefusion_repo_cli.py add --source path/to/face.jpg --name "Alice Frontal"
+# Add a new person
+python facefusion_repo_cli.py add-person --person "marc" --display-name "Marc"
 
-# Add a face with tags
-python facefusion_repo_cli.py add --source path/to/profile.jpg --name "Alice Profile" --tags profile,high-quality
+# List all people
+python facefusion_repo_cli.py people
+```
+
+### 3. Add Faces for a Person
+
+```bash
+# Add a face for Marc
+python facefusion_repo_cli.py add --source path/to/face.jpg --person "marc" --name "Marc Frontal"
+
+# Add another face with tags
+python facefusion_repo_cli.py add --source path/to/profile.jpg --person "marc" --name "Marc Profile" --tags profile,high-quality
 ```
 
 The system will:
 - Detect the face in the image
-- Assess quality metrics
+- Assess quality metrics (resolution, sharpness, brightness, contrast)
 - Determine orientation angle
-- Store if quality is acceptable
+- Estimate 3D pose (pitch, yaw, tilt)
+- Check for occlusions
+- Store in the person's directory if quality is acceptable
 
-### 3. List Faces
+### 4. List Faces and People
 
 ```bash
+# List all people
+python facefusion_repo_cli.py people
+
 # List all faces
 python facefusion_repo_cli.py list
+
+# Filter by person
+python facefusion_repo_cli.py list --person marc
 
 # Filter by orientation
 python facefusion_repo_cli.py list --orientation 0
@@ -53,17 +82,68 @@ python facefusion_repo_cli.py list --orientation 0
 python facefusion_repo_cli.py list --tags frontal,high-quality
 ```
 
-### 4. View Statistics
+### 5. View Statistics
 
 ```bash
 python facefusion_repo_cli.py stats
 ```
 
 Shows:
-- Total faces and quality metrics
+- Total people and faces
+- Quality metrics
+- Faces by person
 - Orientation coverage visualization
 - Missing orientations
 - Storage usage
+
+### 6. Settings and Presets
+
+```bash
+# Create a settings profile from a template
+python facefusion_repo_cli.py repo-settings-create --name "high_quality" --template gpu_accelerated
+
+# List settings
+python facefusion_repo_cli.py repo-settings-list
+
+# Create a preset combining person + settings
+python facefusion_repo_cli.py repo-presets-create --name "marc_hq" --person "marc" --settings "high_quality"
+
+# List presets
+python facefusion_repo_cli.py repo-presets-list
+```
+
+## GUI Interface
+
+Launch the Gradio GUI for visual management:
+
+```bash
+python facefusion_repo_gui.py
+```
+
+The GUI provides tabs for:
+- **Repository**: Person and face management with drag-drop upload
+- **Settings**: Create and manage FaceFusion parameter profiles
+- **Presets**: Combine person + settings for quick access
+
+## Directory Structure
+
+```
+~/.facefusion_repository/
+├── faces/
+│   ├── marc/              # Marc's source faces
+│   │   ├── face_20251028_001.jpg
+│   │   └── face_20251028_002.jpg
+│   ├── alice/             # Alice's source faces
+│   └── john/              # John's source faces
+├── settings/              # FaceFusion parameter profiles
+│   └── profiles.json
+├── presets/               # Person + settings combinations
+│   └── presets.json
+├── queues/               # Processing queues (future)
+├── test_images/          # Preview reference images (future)
+├── repository.json       # Repository database
+└── metadata.json         # Simple repository metadata
+```
 
 ## Usage Examples
 
