@@ -198,6 +198,7 @@ class Preset:
     created_date: str
     last_used: Optional[str] = None
     usage_count: int = 0
+    tags: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
@@ -208,7 +209,8 @@ class Preset:
             'settings_profile': self.settings_profile,
             'created_date': self.created_date,
             'last_used': self.last_used,
-            'usage_count': self.usage_count
+            'usage_count': self.usage_count,
+            'tags': self.tags
         }
 
     @classmethod
@@ -221,7 +223,8 @@ class Preset:
             settings_profile=data['settings_profile'],
             created_date=data['created_date'],
             last_used=data.get('last_used'),
-            usage_count=data.get('usage_count', 0)
+            usage_count=data.get('usage_count', 0),
+            tags=data.get('tags', [])
         )
 
 
