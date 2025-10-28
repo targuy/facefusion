@@ -95,8 +95,10 @@ The system calculates 3D face pose from 5-point landmarks:
 
 Similarity score is calculated as:
 ```
-similarity = 0.5 * yaw_similarity + 0.3 * pitch_similarity + 0.2 * roll_similarity
+similarity = 0.3 * pitch_similarity + 0.5 * yaw_similarity + 0.2 * roll_similarity
 ```
+
+Note: Yaw (left-right rotation) is weighted highest (50%) as it's most impactful for face swapping quality.
 
 Combined with face quality:
 ```
@@ -172,6 +174,8 @@ The repository system is fully backward compatible:
 ### "Person not found in repository"
 - Run `repo-list` to verify person name spelling
 - Run `repo-init` if repository not initialized
+- Check that repository directory `~/.facefusion_repository/` exists and has proper read/write permissions
+- Verify person directory exists at `~/.facefusion_repository/persons/<person_name>/`
 
 ### Poor face swap quality
 - Add more face orientations to the repository
