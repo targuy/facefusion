@@ -9,7 +9,6 @@ system independently.
 import argparse
 import sys
 
-from facefusion import state_manager
 from facefusion_repository.cli.commands import (
     cmd_presets_apply,
     cmd_presets_copy,
@@ -35,6 +34,8 @@ from facefusion_repository.cli.commands import (
     cmd_settings_show
 )
 
+from facefusion import state_manager
+
 
 def create_parser() -> argparse.ArgumentParser:
     """
@@ -52,8 +53,9 @@ def create_parser() -> argparse.ArgumentParser:
     # Add subcommands
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
 
+    # Repository commands
     # repo-init
-    parser_init = subparsers.add_parser(
+    subparsers.add_parser(
         'init',
         help='Initialize face repository'
     )
@@ -115,7 +117,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     # repo-stats
-    parser_stats = subparsers.add_parser(
+    subparsers.add_parser(
         'stats',
         help='Show repository statistics'
     )
@@ -132,7 +134,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser_settings_create.add_argument('--description', help='Description')
 
     # settings-list
-    parser_settings_list = subparsers.add_parser(
+    subparsers.add_parser(
         'settings-list',
         help='List settings profiles'
     )

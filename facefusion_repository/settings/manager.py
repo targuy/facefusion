@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from facefusion_repository.settings.validator import SettingsValidator
-from facefusion_repository.types import ValidationResult
 
 
 class SettingsManager:

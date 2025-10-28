@@ -2,16 +2,15 @@
 Tests for Preset Manager.
 """
 
-import json
 import os
 import tempfile
 import unittest
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
+import numpy
 from facefusion_repository.presets.manager import PresetManager
 from facefusion_repository.types import FaceEntry, FaceMetadata, QualityMetrics
-import numpy
 
 
 class TestPresetManager(unittest.TestCase):

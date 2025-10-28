@@ -2,7 +2,7 @@
 Preset validator for face-settings compatibility.
 """
 
-from typing import List, Optional
+from typing import List
 
 from facefusion_repository.repository.manager import RepositoryManager
 from facefusion_repository.settings.manager import SettingsManager

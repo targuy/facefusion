@@ -2,11 +2,9 @@
 Tests for Settings Manager.
 """
 
-import json
 import os
 import tempfile
 import unittest
-from pathlib import Path
 
 from facefusion_repository.settings.manager import SettingsManager
 

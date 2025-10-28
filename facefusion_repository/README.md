@@ -97,6 +97,56 @@ python facefusion_repo_cli.py remove --face-id face_20251028_abc123
 python facefusion_repo_cli.py list --tags alice
 ```
 
+### Example 3: Creating and Using Presets
+
+```bash
+# Create a settings profile from template
+python facefusion_repo_cli.py settings-create \
+    --name high_quality \
+    --template high_quality \
+    --description "High quality face swapping"
+
+# Create a preset combining face and settings
+python facefusion_repo_cli.py presets-create \
+    --name "alice_frontal_hq" \
+    --face-id face_20251028_abc123 \
+    --settings high_quality \
+    --description "Alice frontal view with high quality" \
+    --tags alice,frontal,high-quality
+
+# List all presets
+python facefusion_repo_cli.py presets-list
+
+# Show preset configuration
+python facefusion_repo_cli.py presets-show --name alice_frontal_hq
+
+# Apply preset to get configuration
+python facefusion_repo_cli.py presets-apply --name alice_frontal_hq
+```
+
+### Example 4: Preset Management
+
+```bash
+# Validate a preset
+python facefusion_repo_cli.py presets-validate --name alice_frontal_hq
+
+# Copy a preset with modifications
+python facefusion_repo_cli.py presets-copy \
+    --source alice_frontal_hq \
+    --name alice_profile_hq \
+    --face-id face_20251028_xyz789
+
+# Export preset for sharing
+python facefusion_repo_cli.py presets-export \
+    --name alice_frontal_hq \
+    --output alice_preset.json
+
+# Import preset
+python facefusion_repo_cli.py presets-import \
+    --file alice_preset.json \
+    --name imported_preset
+```
+
 ## Quality Requirements
 
 Faces must meet these quality thresholds to be accepted:
@@ -125,9 +175,13 @@ Faces must meet these quality thresholds to be accepted:
 │   ├── face_20251028_001.jpg
 │   ├── face_20251028_002.jpg
 │   └── ...
-├── settings/           # Settings profiles (future)
-├── presets.json        # Named presets (future)
-└── temp/              # Temporary processing files (future)
+├── settings/           # Settings profiles
+│   ├── high_quality.json
+│   ├── fast_processing.json
+│   └── ...
+├── presets.json        # Named presets
+├── collections.json    # Preset collections
+└── temp/              # Temporary processing files
 ```
 
 ## Architecture
@@ -152,23 +206,26 @@ Faces must meet these quality thresholds to be accepted:
 
 **Status**: Planned
 
-### Module 3: Settings Management 🔄
+### Module 3: Settings Management ✅
 
 **Components:**
-- Settings profile storage
-- Profile validation
-- Apply to FaceFusion state
+- `SettingsManager`: CRUD operations for settings profiles
+- `SettingsValidator`: Validation against FaceFusion requirements
+- Template system for common configurations
+- Import/export functionality
 
-**Status**: Planned
+**Status**: Complete
 
-### Module 4: Named Presets System 🔄
+### Module 4: Named Presets System ✅
 
 **Components:**
-- Preset creation (face + settings)
-- Preset execution
-- Usage tracking
+- `PresetManager`: Preset CRUD operations
+- `PresetValidator`: Face-settings compatibility validation
+- `PresetTemplate`: Smart preset generation
+- `PresetCollection`: Preset grouping
+- `PresetApplicator`: Configuration deployment
 
-**Status**: Planned
+**Status**: Complete
 
 ### Module 5: Batch Execution Engine 🔄
 
@@ -184,26 +241,34 @@ Faces must meet these quality thresholds to be accepted:
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**: Complete system architecture and design
 - **[SPECIFICATIONS.md](SPECIFICATIONS.md)**: Detailed technical specifications
 - **[MANUAL.md](MANUAL.md)**: Comprehensive user manual
+- **[MODULE4_GUIDE.md](MODULE4_GUIDE.md)**: Module 4 user guide and examples
 - **[SUMMARY.md](SUMMARY.md)**: Project summary and status
 
 ## Development Status
 
-**Current Version**: 1.0.0 (Module 1 Complete)
+**Current Version**: 1.1.0 (Modules 1, 3, and 4 Complete)
 
 **Completed**:
-- ✅ Repository management (add, list, show, remove)
-- ✅ Quality assessment system
-- ✅ Orientation matching algorithms
-- ✅ Compatibility matrix and coverage reports
-- ✅ CLI interface for Module 1
+- ✅ Module 1: Repository management (add, list, show, remove)
+- ✅ Module 1: Quality assessment system
+- ✅ Module 1: Orientation matching algorithms
+- ✅ Module 1: Compatibility matrix and coverage reports
+- ✅ Module 1: CLI interface
+- ✅ Module 3: Settings management system
+- ✅ Module 3: Settings validation
+- ✅ Module 3: Template system
+- ✅ Module 3: Import/export functionality
+- ✅ Module 4: Preset management system
+- ✅ Module 4: Preset validation
+- ✅ Module 4: Preset templates
+- ✅ Module 4: Preset collections
+- ✅ Module 4: Configuration deployment
+- ✅ Module 4: CLI interface
 - ✅ Comprehensive documentation
 
 **In Progress**:
-- 🔄 Destination face analysis
-- 🔄 Settings management
-- 🔄 Presets system
-- 🔄 Batch execution engine
-- 🔄 Complete CLI integration
+- 🔄 Module 2: Destination face analysis
+- 🔄 Module 5: Batch execution engine
 - 🔄 GUI interface
 
 ## Requirements

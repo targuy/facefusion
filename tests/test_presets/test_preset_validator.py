@@ -6,9 +6,9 @@ import os
 import unittest
 from unittest.mock import MagicMock
 
+import numpy
 from facefusion_repository.presets.validator import PresetValidator
 from facefusion_repository.types import FaceEntry, FaceMetadata, QualityMetrics
-import numpy
 
 
 class TestPresetValidator(unittest.TestCase):

@@ -6,7 +6,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from facefusion_repository.presets.validator import PresetValidator
 from facefusion_repository.repository.manager import RepositoryManager
