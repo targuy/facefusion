@@ -218,77 +218,279 @@ Orientation Coverage:
 
 ## Working with Destination Media
 
-### Analyzing Target Media
+Module 2 enables you to analyze destination videos and images, automatically match faces with your repository, and create organized processing queues for efficient batch operations.
 
-Before processing, analyze your target video or images to see what faces are detected and how they match with your repository.
+### Analyzing Destination Media
+
+The `analyze-destination` command processes destination media to detect faces, match them with repository faces, and create processing queues.
+
+**Analyze an Image**
+
+```bash
+python facefusion_repo_cli.py analyze-destination --source image.jpg
+```
 
 **Analyze a Video**
 
 ```bash
-python facefusion.py repo-analyze-target --target video.mp4
+python facefusion_repo_cli.py analyze-destination --source video.mp4
 ```
 
-This will:
-1. Extract faces from all frames
-2. Determine orientation for each face
-3. Show distribution of orientations
-4. Identify frames with no matching source faces
+**With Frame Sampling for Videos**
 
-**Analyze Images**
+Process every 5th frame to speed up analysis:
 
 ```bash
-python facefusion.py repo-analyze-target --target image.jpg
+python facefusion_repo_cli.py analyze-destination \
+    --source video.mp4 \
+    --frame-sample-rate 5
 ```
 
-### Matching with Repository
+**Analysis Without Creating Queues**
 
-After analysis, match detected faces with your repository:
+To preview matches without creating processing queues:
 
 ```bash
-python facefusion.py repo-match --target video.mp4
+python facefusion_repo_cli.py analyze-destination \
+    --source video.mp4 \
+    --no-queues
 ```
 
-**With Custom Tolerance**
+**With Custom Confidence Threshold**
+
+Only create queues for matches above 70% confidence:
 
 ```bash
-python facefusion.py repo-match \
-    --target video.mp4 \
-    --max-angle-diff 30
+python facefusion_repo_cli.py analyze-destination \
+    --source video.mp4 \
+    --min-confidence 0.7
 ```
 
-The `--max-angle-diff` parameter (default 45°) controls how closely orientations must match.
+### Understanding the Analysis Output
 
-**What Gets Created?**
+When you run `analyze-destination`, you'll see output like:
 
-The matching process creates a queue of face swap operations:
-- Groups faces by matched source
-- Tracks frame numbers and timestamps
-- Prepares for efficient batch processing
+```
+Analyzing destination media: video.mp4
 
-### Viewing the Queue
+  Processing frame 0/500 (0.0%)
+  Processing frame 150/500 (30.0%)
+  Processing frame 300/500 (60.0%)
+  Processing frame 450/500 (90.0%)
 
-```bash
-python facefusion.py repo-queue-show
+Analysis Complete!
+============================================================
+Source File: video.mp4
+Total Faces Detected: 45
+Total Faces Matched: 38
+Match Rate: 84.4%
+Processing Time: 12.34s
+
+Matches by Repository Face:
+  face_20251028_abc123 (Alice Frontal): 25 matches
+  face_20251028_def456 (Alice Profile): 13 matches
+
+✓ Processing queues created successfully
+  Use "show-queues" to view queues
 ```
 
-Shows:
-- Number of queues (one per source face)
-- Faces per queue
-- Estimated processing time
+### What the Analysis Does
 
-### Managing the Queue
+1. **Face Detection**: Extracts all faces from images/video frames
+2. **Quality Filtering**: Applies quality thresholds to ensure acceptable faces
+3. **Orientation Analysis**: Determines the orientation angle of each face
+4. **Repository Matching**: Finds the best matching repository face based on orientation
+5. **Confidence Scoring**: Calculates match confidence based on orientation similarity and quality
+6. **Queue Creation**: Organizes matches into processing queues by source face
+7. **Metadata Storage**: Stores frame numbers, timestamps, and match information
 
-**Clear Specific Queue**
+### Viewing Processing Queues
+
+**Show All Queues**
 
 ```bash
-python facefusion.py repo-queue-clear --face-id face_20251028_abc123
+python facefusion_repo_cli.py show-queues
+```
+
+Output example:
+
+```
+Processing Queues:
+============================================================
+
+Queue: face_20251028_abc123
+  Name: Alice Frontal
+  Matches: 25
+  Average Confidence: 0.87
+  Created: 2025-10-28T09:20:00Z
+
+Queue: face_20251028_def456
+  Name: Alice Profile
+  Matches: 13
+  Average Confidence: 0.82
+  Created: 2025-10-28T09:20:00Z
+
+Summary:
+------------------------------------------------------------
+Total Queues: 2
+Total Faces: 38
+```
+
+### Queue Statistics
+
+Get detailed statistics about processing queues:
+
+```bash
+python facefusion_repo_cli.py queue-stats
+```
+
+Output includes:
+- Total number of queues
+- Total faces across all queues
+- Breakdown of faces per queue
+- Repository face names and IDs
+
+```
+Queue Statistics:
+============================================================
+
+Total Queues: 2
+Total Faces: 38
+
+Faces per Queue:
+  face_20251028_abc123 (Alice Frontal): 25 faces
+  face_20251028_def456 (Alice Profile): 13 faces
+```
+
+### Exporting Queue Data
+
+Export a specific queue to a JSON file for external processing or backup:
+
+```bash
+python facefusion_repo_cli.py export-queue \
+    --face-id face_20251028_abc123 \
+    --output queue_backup.json
+```
+
+The exported JSON contains:
+- Source face ID and name
+- Match count and average confidence
+- Detailed match information (frame numbers, timestamps, confidence scores)
+- Source file paths
+
+### Managing Queues
+
+**Clear a Specific Queue**
+
+Remove a single processing queue:
+
+```bash
+python facefusion_repo_cli.py clear-queues --face-id face_20251028_abc123
 ```
 
 **Clear All Queues**
 
+Remove all processing queues:
+
 ```bash
-python facefusion.py repo-queue-clear
+python facefusion_repo_cli.py clear-queues
 ```
+
+### Advanced Analysis Options
+
+**Video Processing with Frame Sampling**
+
+For long videos, use frame sampling to reduce processing time:
+
+```bash
+# Process every 10th frame
+python facefusion_repo_cli.py analyze-destination \
+    --source long_video.mp4 \
+    --frame-sample-rate 10
+```
+
+Frame sampling is useful for:
+- Preview analysis before full processing
+- Long videos where processing time is critical
+- Videos with relatively static faces
+
+**Adjusting Match Confidence**
+
+The default minimum confidence is 0.5 (50%). Adjust based on your needs:
+
+```bash
+# Strict matching (fewer false positives)
+python facefusion_repo_cli.py analyze-destination \
+    --source video.mp4 \
+    --min-confidence 0.8
+
+# Lenient matching (more matches, but lower quality)
+python facefusion_repo_cli.py analyze-destination \
+    --source video.mp4 \
+    --min-confidence 0.3
+```
+
+### Workflow Example
+
+Complete workflow for processing a destination video:
+
+```bash
+# 1. Initialize repository
+python facefusion_repo_cli.py init
+
+# 2. Add source faces at different orientations
+python facefusion_repo_cli.py add \
+    --source alice_frontal.jpg \
+    --name "Alice Frontal"
+
+python facefusion_repo_cli.py add \
+    --source alice_profile.jpg \
+    --name "Alice Profile"
+
+# 3. Verify repository
+python facefusion_repo_cli.py stats
+
+# 4. Analyze destination video
+python facefusion_repo_cli.py analyze-destination \
+    --source destination_video.mp4 \
+    --frame-sample-rate 2
+
+# 5. Review processing queues
+python facefusion_repo_cli.py show-queues
+
+# 6. Check detailed statistics
+python facefusion_repo_cli.py queue-stats
+
+# 7. Export queue if needed
+python facefusion_repo_cli.py export-queue \
+    --face-id face_20251028_abc123 \
+    --output queue_backup.json
+```
+
+### Performance Considerations
+
+**Frame Sampling Guidelines**
+
+- **Sample Rate 1** (every frame): Maximum accuracy, slowest
+- **Sample Rate 2-5**: Good balance for most videos
+- **Sample Rate 10+**: Fast preview, may miss faces in fast-moving scenes
+
+**Video Processing Tips**
+
+1. Use frame sampling for initial analysis
+2. Analyze a short clip first to verify matches
+3. Process full video with sample rate 1 for production use
+4. Monitor system resources during analysis
+
+**Quality Thresholds**
+
+The system uses default quality thresholds from Module 1:
+- Minimum resolution: 256x256
+- Minimum sharpness: 0.3
+- Minimum detector score: 0.5
+- Minimum overall quality: 0.4
+
+These thresholds ensure only acceptable-quality faces are processed.
 
 ## Settings and Presets
 
@@ -472,8 +674,8 @@ Shows:
 
 **Solutions:**
 - Add more faces to repository covering different angles
-- Increase `--max-angle-diff` parameter
-- Check repository coverage: `python facefusion.py repo-stats`
+- Increase orientation tolerance (default is 22 degrees)
+- Check repository coverage: `python facefusion_repo_cli.py stats`
 
 **4. Processing is slow**
 
@@ -481,19 +683,104 @@ Shows:
 - Large video files
 - Many faces per frame
 - Limited system resources
+- Frame sample rate set to 1 (processing every frame)
 
 **Solutions:**
 - Process in smaller batches
 - Reduce video resolution
+- Use frame sampling: `--frame-sample-rate 5`
 - Close other applications
 - Use GPU acceleration if available
+
+**5. "Low match rate" (few faces matched)**
+
+**Causes:**
+- Insufficient repository coverage
+- Quality thresholds too strict
+- Confidence threshold too high
+
+**Solutions:**
+- Add more faces at different orientations to repository
+- Lower confidence threshold: `--min-confidence 0.3`
+- Check which orientations are missing: `python facefusion_repo_cli.py stats`
+- Verify destination media quality
+
+**6. "Analysis takes too long for videos"**
+
+**Causes:**
+- Processing every frame (sample rate = 1)
+- Very long video
+- Complex scenes with many faces
+
+**Solutions:**
+- Use frame sampling: `--frame-sample-rate 5` or higher
+- Analyze a short clip first to test parameters
+- Split long videos into smaller segments
+- Process preview with `--no-queues` flag first
+
+**7. "Queues not being created"**
+
+**Causes:**
+- No matches found (all faces filtered out)
+- Confidence threshold too high
+- Repository is empty
+
+**Solutions:**
+- Verify repository has faces: `python facefusion_repo_cli.py list`
+- Lower confidence threshold
+- Check analysis output for match statistics
+- Review quality of destination media
+
+### Module 2 Specific Issues
+
+**Video Frame Processing Errors**
+
+If you encounter errors during video processing:
+
+```bash
+# Test with frame sampling first
+python facefusion_repo_cli.py analyze-destination \
+    --source video.mp4 \
+    --frame-sample-rate 10 \
+    --no-queues
+```
+
+**Queue Persistence Issues**
+
+If queues aren't saving or loading:
+
+```bash
+# Check queue directory exists
+ls ~/.facefusion_repository/queues/
+
+# Verify queue file
+cat ~/.facefusion_repository/queues/processing_queues.json
+```
+
+**Match Confidence Too Low**
+
+If all matches have low confidence:
+
+1. Check orientation coverage in repository
+2. Verify face quality in both repository and destination
+3. Consider adding more repository faces at needed angles
+
+```bash
+# See what orientations are needed
+python facefusion_repo_cli.py analyze-destination \
+    --source video.mp4 \
+    --no-queues
+
+# Check repository coverage
+python facefusion_repo_cli.py stats
+```
 
 ### Checking System Health
 
 **Verify Repository**
 
 ```bash
-python facefusion.py repo-stats
+python facefusion_repo_cli.py stats
 ```
 
 Look for:
@@ -501,31 +788,90 @@ Look for:
 - Good orientation coverage
 - Acceptable quality scores
 
+**Check Processing Queues**
+
+```bash
+python facefusion_repo_cli.py show-queues
+```
+
+Verify:
+- Queues have been created
+- Match counts are reasonable
+- Average confidence is acceptable (>0.5)
+
 **Check Disk Space**
 
 ```bash
 du -sh ~/.facefusion_repository
 ```
 
-Repository can grow large with many high-resolution faces.
+Repository can grow large with many high-resolution faces and processing queues.
 
-### Getting Help
+### Debugging Analysis Issues
 
-**Verbose Output**
+**Enable Verbose Output**
 
-Add `--log-level debug` to any command for detailed output:
+Add print statements in the code or check for errors:
 
 ```bash
-python facefusion.py repo-add-face \
-    --source face.jpg \
-    --log-level debug
+# Run with Python directly to see detailed errors
+python facefusion_repo_cli.py analyze-destination --source video.mp4
 ```
+
+**Test with Simple Image First**
+
+Before processing videos, test with a simple image:
+
+```bash
+# Test image analysis
+python facefusion_repo_cli.py analyze-destination \
+    --source test_image.jpg
+```
+
+**Verify Face Detection Works**
+
+Ensure FaceFusion's face detection is working:
+
+```bash
+# Initialize state manager
+python facefusion_repo_cli.py list
+```
+
+### Performance Optimization
+
+**For Large Videos:**
+
+1. Use aggressive frame sampling for preview: `--frame-sample-rate 20`
+2. Analyze a short segment first
+3. Once parameters are tuned, process full video with lower sampling rate
+
+**For Many Faces:**
+
+1. Increase confidence threshold to filter weak matches
+2. Ensure repository has only necessary orientations
+3. Use quality filtering to skip poor faces
+
+**Memory Management:**
+
+- Process videos in segments if memory errors occur
+- Clear old queues regularly: `python facefusion_repo_cli.py clear-queues`
+- Monitor system resources during processing
+
+### Getting Help
 
 **Error Logs**
 
 Check logs at:
-- `~/.facefusion_repository/error.log`
-- Console output with debug logging
+- Console output during analysis
+- Python stack traces for detailed error information
+
+**Diagnostic Information**
+
+When reporting issues, include:
+- Repository statistics (`stats` command output)
+- Queue statistics (`queue-stats` output)
+- Analysis output with error messages
+- Video/image properties (resolution, duration, format)
 
 ## Best Practices
 
