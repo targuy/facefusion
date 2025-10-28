@@ -12,6 +12,7 @@ import sys
 from facefusion import state_manager
 from facefusion_repository.cli.commands import (
     cmd_repo_add_face,
+    cmd_repo_create_test_images,
     cmd_repo_gpu_configure,
     cmd_repo_gpu_status,
     cmd_repo_init,
@@ -67,6 +68,11 @@ def create_parser() -> argparse.ArgumentParser:
     parser_add.add_argument(
         '--tags',
         help='Comma-separated tags'
+    )
+    parser_add.add_argument(
+        '--preview',
+        action='store_true',
+        help='Generate preview before adding to repository'
     )
 
     # repo-list
@@ -157,6 +163,21 @@ def create_parser() -> argparse.ArgumentParser:
         help='GPU memory limit in MB'
     )
 
+    # create-test-images
+    parser_create_test = subparsers.add_parser(
+        'create-test-images',
+        help='Create test images from source directory'
+    )
+    parser_create_test.add_argument(
+        '--source-dir',
+        required=True,
+        help='Directory containing reference images'
+    )
+    parser_create_test.add_argument(
+        '--output-dir',
+        help='Output directory for test images (default: repository test_images/)'
+    )
+
     return parser
 
 
@@ -195,7 +216,8 @@ def main() -> int:
         'stats': cmd_repo_stats,
         'people': cmd_repo_people,
         'gpu-status': cmd_repo_gpu_status,
-        'gpu-configure': cmd_repo_gpu_configure
+        'gpu-configure': cmd_repo_gpu_configure,
+        'create-test-images': cmd_repo_create_test_images
     }
 
     command_func = command_map.get(args.command)

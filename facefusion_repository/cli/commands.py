@@ -7,6 +7,8 @@ import argparse
 from facefusion_repository.repository.compatibility_matrix import CompatibilityMatrix
 from facefusion_repository.repository.manager import RepositoryManager
 from facefusion_repository.gpu.manager import GPUManager
+from facefusion_repository.preview.test_image_manager import TestImageManager
+from facefusion_repository.preview.preview_generator import PreviewGenerator
 
 
 def register_repository_commands(subparsers: argparse._SubParsersAction) -> None:
@@ -45,6 +47,11 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
     parser_add.add_argument(
         '--tags',
         help='Comma-separated tags'
+    )
+    parser_add.add_argument(
+        '--preview',
+        action='store_true',
+        help='Generate preview before adding to repository'
     )
     parser_add.set_defaults(func=cmd_repo_add_face)
 
@@ -143,6 +150,22 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
     )
     parser_gpu_config.set_defaults(func=cmd_repo_gpu_configure)
 
+    # repo-create-test-images command
+    parser_create_test = subparsers.add_parser(
+        'repo-create-test-images',
+        help='Create test images from source directory'
+    )
+    parser_create_test.add_argument(
+        '--source-dir',
+        required=True,
+        help='Directory containing reference images'
+    )
+    parser_create_test.add_argument(
+        '--output-dir',
+        help='Output directory for test images (default: repository test_images/)'
+    )
+    parser_create_test.set_defaults(func=cmd_repo_create_test_images)
+
 
 def cmd_repo_init(args: argparse.Namespace) -> int:
     """
@@ -177,6 +200,35 @@ def cmd_repo_add_face(args: argparse.Namespace) -> int:
         Exit code (0 for success)
     """
     print(f'Adding face for {args.person} from: {args.source}')
+
+    # Generate preview if requested
+    if args.preview:
+        print('\nGenerating preview...')
+        preview_gen = PreviewGenerator()
+        result = preview_gen.generate_preview(args.source)
+        
+        if result.success:
+            print('✓ Preview generated successfully')
+            print(f'  Preview path: {result.preview_path}')
+            print(f'  Quality score: {result.quality_score:.2f}')
+            if result.orientation_match:
+                print(f'  Orientation match: {result.orientation_match}')
+            
+            if result.warnings:
+                print('  Warnings:')
+                for warning in result.warnings:
+                    print(f'    - {warning}')
+            
+            # Ask for confirmation
+            response = input('\nProceed with adding face to repository? (y/n): ')
+            if response.lower() != 'y':
+                print('Cancelled.')
+                return 0
+        else:
+            print('✗ Preview generation failed')
+            for warning in result.warnings:
+                print(f'  - {warning}')
+            print('Continuing without preview...')
 
     # Parse tags if provided
     tags = None
@@ -512,3 +564,39 @@ def cmd_repo_gpu_configure(args: argparse.Namespace) -> int:
     gpu_manager.print_status()
     
     return 0
+
+
+def cmd_repo_create_test_images(args: argparse.Namespace) -> int:
+    """
+    Create test images from source directory command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    print(f'Creating test images from: {args.source_dir}')
+    
+    test_manager = TestImageManager()
+    
+    count = test_manager.create_test_images_from_directory(
+        source_dir=args.source_dir,
+        output_dir=args.output_dir
+    )
+    
+    if count > 0:
+        print(f'\n✓ Successfully created {count} test images')
+        
+        # Show coverage
+        coverage = test_manager.get_coverage()
+        print(f'\nCoverage: {coverage["coverage_percentage"]:.1f}%')
+        print(f'Covered orientations: {", ".join(str(a) + "°" for a in coverage["covered_angles"])}')
+        
+        if coverage['missing_angles']:
+            print(f'Missing orientations: {", ".join(str(a) + "°" for a in coverage["missing_angles"])}')
+        
+        return 0
+    else:
+        print('✗ No test images were created')
+        return 1
