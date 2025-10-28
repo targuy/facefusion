@@ -292,3 +292,219 @@ def cmd_repo_stats(args: argparse.Namespace) -> int:
         print('\nRecommendation: Add faces at missing orientations for complete coverage.')
 
     return 0
+
+
+def register_execution_commands(subparsers: argparse._SubParsersAction) -> None:
+    """
+    Register execution commands with the argument parser.
+
+    Args:
+        subparsers: Subparser object from argparse
+    """
+    # execute-batch command
+    parser_execute_batch = subparsers.add_parser(
+        'execute-batch',
+        help='Execute all queued face swaps'
+    )
+    parser_execute_batch.add_argument(
+        '--output-dir',
+        help='Output directory for processed videos'
+    )
+    parser_execute_batch.add_argument(
+        '--settings',
+        help='Settings profile to apply'
+    )
+    parser_execute_batch.set_defaults(func=cmd_execute_batch)
+
+    # execute-queue command
+    parser_execute_queue = subparsers.add_parser(
+        'execute-queue',
+        help='Execute specific queue'
+    )
+    parser_execute_queue.add_argument(
+        '--face-id',
+        required=True,
+        help='Face ID for queue to execute'
+    )
+    parser_execute_queue.add_argument(
+        '--output-dir',
+        help='Output directory for processed videos'
+    )
+    parser_execute_queue.set_defaults(func=cmd_execute_queue)
+
+    # validate-output command
+    parser_validate = subparsers.add_parser(
+        'validate-output',
+        help='Validate output files'
+    )
+    parser_validate.add_argument(
+        '--batch-id',
+        required=True,
+        help='Batch ID to validate'
+    )
+    parser_validate.set_defaults(func=cmd_validate_output)
+
+    # cleanup-temp command
+    parser_cleanup = subparsers.add_parser(
+        'cleanup-temp',
+        help='Clean up temporary files'
+    )
+    parser_cleanup.set_defaults(func=cmd_cleanup_temp)
+
+
+def cmd_execute_batch(args: argparse.Namespace) -> int:
+    """
+    Execute batch command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    from facefusion_repository.execution import BatchExecutor
+
+    print('Executing batch face swaps...')
+
+    executor = BatchExecutor(output_dir=args.output_dir)
+
+    # Check if there are queues to process
+    if not executor.queue_processor.has_queues():
+        print('✗ No queues found to process')
+        print('Use destination analysis commands to create processing queues first.')
+        return 1
+
+    # Show queue statistics
+    stats = executor.queue_processor.get_queue_statistics()
+    print(f'Found {stats.total_queues} queue(s) with {stats.total_faces} total items')
+    print()
+
+    # Execute batch with progress callback
+    def progress_callback(completed: int, total: int, status: str) -> None:
+        print(f'\r{status}', end='', flush=True)
+
+    result = executor.execute_batch(progress_callback=progress_callback)
+
+    print()  # New line after progress
+    print('✓ Batch execution complete!')
+    print(f'  Successful swaps: {result.successful_swaps}/{result.total_swaps}')
+    print(f'  Processing time: {result.total_time:.1f}s')
+
+    if result.failed_swaps > 0:
+        print(f'  ⚠ Failed swaps: {result.failed_swaps}')
+        return 1
+
+    return 0
+
+
+def cmd_execute_queue(args: argparse.Namespace) -> int:
+    """
+    Execute specific queue command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    from facefusion_repository.execution import BatchExecutor
+    from facefusion_repository.execution.progress_tracker import ProgressTracker
+
+    print(f'Executing queue for face: {args.face_id}')
+
+    executor = BatchExecutor(output_dir=args.output_dir)
+
+    # Check if queue exists
+    queue = executor.queue_processor.get_queue(args.face_id)
+    if not queue:
+        print(f'✗ No queue found for face ID: {args.face_id}')
+        return 1
+
+    print(f'Found {len(queue)} items in queue')
+    print()
+
+    # Create batch ID
+    batch_id = executor.result_manager.create_batch_output_directory()
+
+    # Initialize progress tracker
+    progress_tracker = ProgressTracker(len(queue))
+
+    # Execute queue
+    def progress_callback(completed: int, total: int, status: str) -> None:
+        print(f'\r{status}', end='', flush=True)
+
+    result = executor.execute_queue(
+        args.face_id,
+        batch_id,
+        progress_tracker,
+        progress_callback
+    )
+
+    print()  # New line after progress
+    print('✓ Queue execution complete!')
+    print(f'  Successful swaps: {result.successful_swaps}/{result.total_swaps}')
+    print(f'  Processing time: {result.processing_time:.1f}s')
+
+    if result.failed_swaps > 0:
+        print(f'  ⚠ Failed swaps: {result.failed_swaps}')
+        return 1
+
+    return 0
+
+
+def cmd_validate_output(args: argparse.Namespace) -> int:
+    """
+    Validate output command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    from facefusion_repository.execution.result_manager import ResultManager
+
+    print(f'Validating output for batch: {args.batch_id}')
+
+    result_manager = ResultManager()
+
+    # Load batch result
+    batch_result = result_manager.load_batch_result(args.batch_id)
+
+    if batch_result is None:
+        print(f'✗ Batch not found: {args.batch_id}')
+        return 1
+
+    # Generate and print summary report
+    print()
+    print(result_manager.generate_summary_report(args.batch_id))
+
+    # Validate output files
+    # Note: This would require tracking output file paths
+    # For now, just show the report
+
+    return 0
+
+
+def cmd_cleanup_temp(args: argparse.Namespace) -> int:
+    """
+    Clean up temporary files command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    from facefusion_repository.execution.video_assembler import VideoAssembler
+
+    print('Cleaning up temporary files...')
+
+    assembler = VideoAssembler()
+
+    if assembler.cleanup_all():
+        print('✓ Temporary files cleaned up successfully')
+        return 0
+    else:
+        print('✗ Failed to clean up temporary files')
+        return 1
