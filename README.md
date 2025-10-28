@@ -52,7 +52,35 @@ commands:
     job-run-all                                   run all queued jobs
     job-retry                                     retry a failed job
     job-retry-all                                 retry all failed jobs
+    repo-init                                     initialize a new face repository
+    repo-add                                      add a face to the repository
+    repo-list                                     list persons and faces in the repository
+    repo-execute                                  execute face swapping using repository faces
 ```
+
+
+Face Repository
+---------------
+
+The Face Repository system provides organized, person-centric face management for FaceFusion.
+
+Quick start:
+
+```bash
+# Initialize repository
+python facefusion.py repo-init
+
+# Add faces
+python facefusion.py repo-add --person "John" -s john_face.jpg
+
+# List repository
+python facefusion.py repo-list
+
+# Execute face swapping
+python facefusion.py repo-execute --person "John" -t video.mp4 -o output.mp4
+```
+
+See [facefusion_repository/README.md](facefusion_repository/README.md) for detailed documentation.
 
 
 Documentation
