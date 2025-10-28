@@ -12,6 +12,8 @@ import sys
 from facefusion import state_manager
 from facefusion_repository.cli.commands import (
     cmd_repo_add_face,
+    cmd_repo_gpu_configure,
+    cmd_repo_gpu_status,
     cmd_repo_init,
     cmd_repo_list,
     cmd_repo_people,
@@ -124,6 +126,37 @@ def create_parser() -> argparse.ArgumentParser:
         help='List all people in repository'
     )
 
+    # gpu-status
+    parser_gpu_status = subparsers.add_parser(
+        'gpu-status',
+        help='Show GPU status and configuration'
+    )
+
+    # gpu-configure
+    parser_gpu_config = subparsers.add_parser(
+        'gpu-configure',
+        help='Configure GPU settings'
+    )
+    parser_gpu_config.add_argument(
+        '--enable',
+        action='store_true',
+        help='Enable GPU acceleration'
+    )
+    parser_gpu_config.add_argument(
+        '--disable',
+        action='store_true',
+        help='Disable GPU acceleration'
+    )
+    parser_gpu_config.add_argument(
+        '--device-ids',
+        help='Comma-separated device IDs to use (e.g., "0,1")'
+    )
+    parser_gpu_config.add_argument(
+        '--memory-limit',
+        type=int,
+        help='GPU memory limit in MB'
+    )
+
     return parser
 
 
@@ -160,7 +193,9 @@ def main() -> int:
         'show': cmd_repo_show,
         'remove': cmd_repo_remove,
         'stats': cmd_repo_stats,
-        'people': cmd_repo_people
+        'people': cmd_repo_people,
+        'gpu-status': cmd_repo_gpu_status,
+        'gpu-configure': cmd_repo_gpu_configure
     }
 
     command_func = command_map.get(args.command)

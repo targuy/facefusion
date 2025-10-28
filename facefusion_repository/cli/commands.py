@@ -6,6 +6,7 @@ import argparse
 
 from facefusion_repository.repository.compatibility_matrix import CompatibilityMatrix
 from facefusion_repository.repository.manager import RepositoryManager
+from facefusion_repository.gpu.manager import GPUManager
 
 
 def register_repository_commands(subparsers: argparse._SubParsersAction) -> None:
@@ -108,6 +109,39 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
         help='List all people in repository'
     )
     parser_people.set_defaults(func=cmd_repo_people)
+
+    # repo-gpu-status command
+    parser_gpu_status = subparsers.add_parser(
+        'repo-gpu-status',
+        help='Show GPU status and configuration'
+    )
+    parser_gpu_status.set_defaults(func=cmd_repo_gpu_status)
+
+    # repo-gpu-configure command
+    parser_gpu_config = subparsers.add_parser(
+        'repo-gpu-configure',
+        help='Configure GPU settings'
+    )
+    parser_gpu_config.add_argument(
+        '--enable',
+        action='store_true',
+        help='Enable GPU acceleration'
+    )
+    parser_gpu_config.add_argument(
+        '--disable',
+        action='store_true',
+        help='Disable GPU acceleration'
+    )
+    parser_gpu_config.add_argument(
+        '--device-ids',
+        help='Comma-separated device IDs to use (e.g., "0,1")'
+    )
+    parser_gpu_config.add_argument(
+        '--memory-limit',
+        type=int,
+        help='GPU memory limit in MB'
+    )
+    parser_gpu_config.set_defaults(func=cmd_repo_gpu_configure)
 
 
 def cmd_repo_init(args: argparse.Namespace) -> int:
@@ -380,4 +414,75 @@ def cmd_repo_people(args: argparse.Namespace) -> int:
             print(f'  Average Quality: {stats.average_quality:.2f}')
             print(f'  Orientations: {", ".join(str(a) + "°" for a in sorted(stats.faces_by_orientation.keys()))}')
 
+    return 0
+
+
+def cmd_repo_gpu_status(args: argparse.Namespace) -> int:
+    """
+    Show GPU status and configuration command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    gpu_manager = GPUManager()
+    gpu_manager.print_status()
+    return 0
+
+
+def cmd_repo_gpu_configure(args: argparse.Namespace) -> int:
+    """
+    Configure GPU settings command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    gpu_manager = GPUManager()
+    
+    # Check for conflicting options
+    if args.enable and args.disable:
+        print('Error: Cannot enable and disable GPU at the same time')
+        return 1
+    
+    # Enable GPU
+    if args.enable:
+        device_ids = None
+        if args.device_ids:
+            try:
+                device_ids = [int(x.strip()) for x in args.device_ids.split(',')]
+            except ValueError:
+                print('Error: Invalid device IDs format. Use comma-separated integers.')
+                return 1
+        
+        if gpu_manager.enable_gpu(device_ids):
+            print('✓ GPU acceleration enabled')
+        else:
+            print('✗ Failed to enable GPU acceleration')
+            return 1
+    
+    # Disable GPU
+    if args.disable:
+        if gpu_manager.disable_gpu():
+            print('✓ GPU acceleration disabled (CPU only)')
+        else:
+            print('✗ Failed to disable GPU acceleration')
+            return 1
+    
+    # Set memory limit
+    if args.memory_limit:
+        if gpu_manager.set_memory_limit(args.memory_limit):
+            print(f'✓ GPU memory limit set to {args.memory_limit} MB')
+        else:
+            print('✗ Failed to set GPU memory limit')
+            return 1
+    
+    # Show current status
+    print()
+    gpu_manager.print_status()
+    
     return 0
