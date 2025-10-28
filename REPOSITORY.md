@@ -35,7 +35,7 @@ Example output:
 Persons in repository:
   - Marie (3 faces)
   - Alice (2 faces)
-  - Sophie (1 faces)
+  - Sophie (1 face)
 ```
 
 ### Removing a Person from Repository

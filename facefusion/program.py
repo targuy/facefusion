@@ -286,6 +286,7 @@ def create_repository_path_program() -> ArgumentParser:
 	program = ArgumentParser(add_help = False)
 	group_paths = program.add_argument_group('paths')
 	group_paths.add_argument('--repository-path', help = 'path to face repository', default = '.face_repository')
+	job_store.register_job_keys([ 'repository_path' ])
 	return program
 
 
@@ -293,12 +294,14 @@ def create_person_name_program() -> ArgumentParser:
 	program = ArgumentParser(add_help = False)
 	program.add_argument('--person', help = 'person name from repository', required = True)
 	program.add_argument('--fallback-persons', help = 'fallback person names (comma-separated)', default = None)
+	job_store.register_job_keys([ 'person', 'fallback_persons' ])
 	return program
 
 
 def create_face_paths_program() -> ArgumentParser:
 	program = ArgumentParser(add_help = False)
 	program.add_argument('--face-paths', help = 'paths to face images', nargs = '+', required = True)
+	job_store.register_job_keys([ 'face_paths' ])
 	return program
 
 
