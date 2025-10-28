@@ -292,6 +292,7 @@ def create_repository_path_program() -> ArgumentParser:
 def create_person_name_program() -> ArgumentParser:
 	program = ArgumentParser(add_help = False)
 	program.add_argument('--person', help = 'person name from repository', required = True)
+	program.add_argument('--fallback-persons', help = 'fallback person names (comma-separated)', default = None)
 	return program
 
 

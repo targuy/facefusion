@@ -221,10 +221,17 @@ def route_repository(args : Args) -> ErrorCode:
 		from facefusion_repository.selector import RepositorySelector
 		
 		person_name = state_manager.get_item('person')
+		fallback_persons_str = state_manager.get_item('fallback_persons')
+		
+		# Parse fallback persons
+		fallback_persons = None
+		if fallback_persons_str:
+			fallback_persons = [name.strip() for name in fallback_persons_str.split(',')]
+		
 		selector = RepositorySelector(manager)
 		
-		# Get faces for the person
-		face_paths = selector.select_faces_for_person(person_name)
+		# Get faces for the person with fallback
+		face_paths = selector.select_faces_for_person(person_name, fallback_persons)
 		
 		if not face_paths:
 			logger.error(f"No faces found for person '{person_name}'", __name__)
