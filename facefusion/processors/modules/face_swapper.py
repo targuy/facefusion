@@ -683,12 +683,28 @@ def process_frame(inputs : FaceSwapperInputs) -> VisionFrame:
 	source_vision_frames = inputs.get('source_vision_frames')
 	target_vision_frame = inputs.get('target_vision_frame')
 	temp_vision_frame = inputs.get('temp_vision_frame')
-	source_face = extract_source_face(source_vision_frames)
-	target_faces = select_faces(reference_vision_frame, target_vision_frame)
+	
+	# Check if we're using repository mode
+	repository_person_name = state_manager.get_item('repository_person_name')
+	
+	if repository_person_name:
+		# Use repository-based face selection
+		from facefusion_repository.executor import process_frame_with_repository
+		
+		temp_vision_frame = process_frame_with_repository(
+			repository_person_name,
+			reference_vision_frame,
+			target_vision_frame,
+			temp_vision_frame
+		)
+	else:
+		# Use traditional source face extraction
+		source_face = extract_source_face(source_vision_frames)
+		target_faces = select_faces(reference_vision_frame, target_vision_frame)
 
-	if source_face and target_faces:
-		for target_face in target_faces:
-			target_face = scale_face(target_face, target_vision_frame, temp_vision_frame)
-			temp_vision_frame = swap_face(source_face, target_face, temp_vision_frame)
+		if source_face and target_faces:
+			for target_face in target_faces:
+				target_face = scale_face(target_face, target_vision_frame, temp_vision_frame)
+				temp_vision_frame = swap_face(source_face, target_face, temp_vision_frame)
 
 	return temp_vision_frame

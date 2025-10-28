@@ -317,6 +317,14 @@ def create_program() -> ArgumentParser:
 	sub_program.add_parser('job-run-all', help = wording.get('help.job_run_all'), parents = [ create_config_path_program(), create_temp_path_program(), create_jobs_path_program(), collect_job_program(), create_halt_on_error_program() ], formatter_class = create_help_formatter_large)
 	sub_program.add_parser('job-retry', help = wording.get('help.job_retry'), parents = [ create_job_id_program(), create_config_path_program(), create_temp_path_program(), create_jobs_path_program(), collect_job_program() ], formatter_class = create_help_formatter_large)
 	sub_program.add_parser('job-retry-all', help = wording.get('help.job_retry_all'), parents = [ create_config_path_program(), create_temp_path_program(), create_jobs_path_program(), collect_job_program(), create_halt_on_error_program() ], formatter_class = create_help_formatter_large)
+	# repository
+	sub_program.add_parser('repo-init', help = 'Initialize face repository', parents = [ create_log_level_program() ], formatter_class = create_help_formatter_large)
+	repo_add_parser = sub_program.add_parser('repo-add', help = 'Add face to repository', parents = [ create_log_level_program() ], formatter_class = create_help_formatter_large)
+	repo_add_parser.add_argument('--person', help = 'Person name', required = True)
+	repo_add_parser.add_argument('--source', help = 'Source image path', required = True)
+	sub_program.add_parser('repo-list', help = 'List persons in repository', parents = [ create_log_level_program() ], formatter_class = create_help_formatter_large)
+	repo_execute_parser = sub_program.add_parser('repo-execute', help = 'Execute face swap with repository', parents = [ create_config_path_program(), create_temp_path_program(), create_target_path_program(), create_output_path_program(), collect_step_program(), collect_job_program() ], formatter_class = create_help_formatter_large)
+	repo_execute_parser.add_argument('--person', help = 'Person name from repository', required = True)
 	return ArgumentParser(parents = [ program ], formatter_class = create_help_formatter_small)
 
 

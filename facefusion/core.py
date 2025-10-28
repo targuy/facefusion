@@ -100,6 +100,10 @@ def route(args : Args) -> None:
 		error_code = route_job_runner()
 		hard_exit(error_code)
 
+	if state_manager.get_item('command') in [ 'repo-init', 'repo-add', 'repo-list', 'repo-execute' ]:
+		error_code = route_repository(args)
+		hard_exit(error_code)
+
 
 def pre_check() -> bool:
 	if sys.version_info < (3, 10):
@@ -281,6 +285,72 @@ def route_job_runner() -> ErrorCode:
 		logger.info(wording.get('processing_jobs_failed'), __name__)
 		return 1
 	return 2
+
+
+def route_repository(args : Args) -> ErrorCode:
+	from facefusion_repository import manager, storage
+	from facefusion import cli_helper
+
+	if state_manager.get_item('command') == 'repo-init':
+		if manager.init_repository():
+			logger.info('Repository initialized at: ' + storage.get_repository_path(), __name__)
+			return 0
+		logger.error('Failed to initialize repository', __name__)
+		return 1
+
+	if state_manager.get_item('command') == 'repo-add':
+		person_name = args.get('person')
+		source_path = args.get('source')
+
+		if not person_name or not source_path:
+			logger.error('Both --person and --source arguments are required', __name__)
+			return 1
+
+		if manager.add_person_face(person_name, source_path):
+			return 0
+		return 1
+
+	if state_manager.get_item('command') == 'repo-list':
+		persons = manager.list_repository_persons()
+
+		if not persons:
+			logger.info('No persons found in repository', __name__)
+			return 0
+
+		# Display table of persons and face counts
+		headers = ['Person', 'Faces']
+		contents = []
+
+		for person_name in persons:
+			person_info = manager.get_person_info(person_name)
+			if person_info:
+				contents.append([person_name, str(person_info['face_count'])])
+
+		cli_helper.render_table(headers, contents)
+		return 0
+
+	if state_manager.get_item('command') == 'repo-execute':
+		person_name = args.get('person')
+
+		if not person_name:
+			logger.error('--person argument is required', __name__)
+			return 1
+
+		if not storage.person_exists(person_name):
+			logger.error(f"Person '{person_name}' not found in repository", __name__)
+			return 1
+
+		# Set the person name in state for use during processing
+		state_manager.set_item('repository_person_name', person_name)
+
+		# Process using repository executor
+		if not common_pre_check():
+			return 2
+
+		error_code = conditional_process()
+		return error_code
+
+	return 1
 
 
 def process_headless(args : Args) -> ErrorCode:
