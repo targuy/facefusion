@@ -56,6 +56,10 @@ def route(args : Args) -> None:
 	if system_memory_limit and system_memory_limit > 0:
 		limit_system_memory(system_memory_limit)
 
+	if state_manager.get_item('command') in [ 'repo-add', 'repo-list', 'repo-remove', 'repo-execute' ]:
+		error_code = route_repository(args)
+		hard_exit(error_code)
+
 	if state_manager.get_item('command') == 'force-download':
 		error_code = force_download()
 		hard_exit(error_code)
@@ -166,6 +170,76 @@ def force_download() -> ErrorCode:
 						return 1
 
 	return 0
+
+
+def route_repository(args : Args) -> ErrorCode:
+	"""Route repository commands."""
+	from facefusion_repository.manager import RepositoryManager
+	
+	repository_path = state_manager.get_item('repository_path')
+	manager = RepositoryManager(repository_path)
+	
+	if state_manager.get_item('command') == 'repo-add':
+		person_name = state_manager.get_item('person')
+		face_paths = state_manager.get_item('face_paths')
+		
+		try:
+			person = manager.create_person(person_name, face_paths)
+			logger.info(f"Added person '{person_name}' with {person['face_count']} faces", __name__)
+			return 0
+		except Exception as e:
+			logger.error(f"Failed to add person: {str(e)}", __name__)
+			return 1
+	
+	if state_manager.get_item('command') == 'repo-list':
+		persons = manager.list_persons()
+		if persons:
+			logger.info("Persons in repository:", __name__)
+			for person in persons:
+				logger.info(f"  - {person['display_name']} ({person['face_count']} faces)", __name__)
+			return 0
+		else:
+			logger.info("No persons in repository", __name__)
+			return 0
+	
+	if state_manager.get_item('command') == 'repo-remove':
+		person_name = state_manager.get_item('person')
+		person = manager.get_person_by_name(person_name)
+		
+		if person:
+			if manager.remove_person(person['person_id']):
+				logger.info(f"Removed person '{person_name}'", __name__)
+				return 0
+			else:
+				logger.error(f"Failed to remove person '{person_name}'", __name__)
+				return 1
+		else:
+			logger.error(f"Person '{person_name}' not found", __name__)
+			return 1
+	
+	if state_manager.get_item('command') == 'repo-execute':
+		from facefusion_repository.selector import RepositorySelector
+		
+		person_name = state_manager.get_item('person')
+		selector = RepositorySelector(manager)
+		
+		# Get faces for the person
+		face_paths = selector.select_faces_for_person(person_name)
+		
+		if not face_paths:
+			logger.error(f"No faces found for person '{person_name}'", __name__)
+			return 1
+		
+		# Update source_paths in state manager
+		state_manager.init_item('source_paths', face_paths)
+		logger.info(f"Using {len(face_paths)} face(s) from person '{person_name}'", __name__)
+		
+		# Process using existing headless-run logic
+		if not common_pre_check() or not processors_pre_check():
+			return 2
+		return process_headless(args)
+	
+	return 1
 
 
 def route_job_manager(args : Args) -> ErrorCode:
