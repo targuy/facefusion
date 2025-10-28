@@ -2,13 +2,11 @@
 Quality assessment for face images in the repository.
 """
 
-from typing import Tuple
-
 import cv2
 import numpy
+from facefusion_repository.types import QualityMetrics, QualityThresholds
 
 from facefusion.types import BoundingBox, Face, VisionFrame
-from facefusion_repository.types import QualityMetrics, QualityThresholds
 
 
 class QualityAssessor:

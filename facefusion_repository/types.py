@@ -9,7 +9,7 @@ import numpy
 from numpy.typing import NDArray
 
 # Re-export FaceFusion types
-from facefusion.types import Face, VisionFrame, BoundingBox
+from facefusion.types import Face
 
 
 # Repository Types

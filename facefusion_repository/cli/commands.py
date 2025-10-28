@@ -3,7 +3,6 @@ CLI commands for FaceFusion Repository System.
 """
 
 import argparse
-from typing import Optional
 
 from facefusion_repository.repository.compatibility_matrix import CompatibilityMatrix
 from facefusion_repository.repository.manager import RepositoryManager
@@ -106,7 +105,7 @@ def cmd_repo_init(args: argparse.Namespace) -> int:
     repo = RepositoryManager()
 
     if repo.initialize_repository():
-        print(f'✓ Repository initialized successfully at {repo.repository_path}')
+        print('✓ Repository initialized successfully at {}'.format(repo.repository_path))
         return 0
     else:
         print('✗ Failed to initialize repository')
@@ -138,8 +137,8 @@ def cmd_repo_add_face(args: argparse.Namespace) -> int:
     )
 
     if face_id:
-        print(f'✓ Face added successfully!')
-        print(f'  ID: {face_id}')
+        print('✓ Face added successfully!')
+        print('  ID: {}'.format(face_id))
         if args.name:
             print(f'  Name: {args.name}')
         if tags:
@@ -215,7 +214,7 @@ def cmd_repo_show(args: argparse.Namespace) -> int:
     face = repo.get_face(args.face_id)
 
     if not face:
-        print(f'✗ Face not found: {args.face_id}')
+        print('✗ Face not found: {}'.format(args.face_id))
         return 1
 
     print(f'Face Details: {args.face_id}')
@@ -255,7 +254,7 @@ def cmd_repo_remove(args: argparse.Namespace) -> int:
     repo = RepositoryManager()
 
     if repo.remove_face(args.face_id):
-        print(f'✓ Face removed successfully')
+        print('✓ Face removed successfully')
         return 0
     else:
         print('✗ Failed to remove face')

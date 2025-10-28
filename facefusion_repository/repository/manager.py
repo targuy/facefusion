@@ -4,15 +4,12 @@ Repository manager for face storage and retrieval.
 
 import json
 import os
+import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import numpy
-
-from facefusion import face_analyser, state_manager
-from facefusion.vision import read_static_image
 from facefusion_repository.repository.orientation_matcher import OrientationMatcher
 from facefusion_repository.repository.quality_assessor import QualityAssessor
 from facefusion_repository.types import (
@@ -22,6 +19,9 @@ from facefusion_repository.types import (
     QualityThresholds,
     RepositoryStats
 )
+
+from facefusion import face_analyser
+from facefusion.vision import read_static_image
 
 
 class RepositoryManager:
@@ -213,7 +213,6 @@ class RepositoryManager:
             image_filename = f'{face_id}{Path(image_path).suffix}'
             dest_path = self.faces_dir / image_filename
 
-            import shutil
             shutil.copy2(image_path, dest_path)
 
             # Create face entry
