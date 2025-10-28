@@ -290,6 +290,18 @@ def collect_job_program() -> ArgumentParser:
 	return ArgumentParser(parents = [ create_execution_program(), create_download_providers_program(), create_memory_program(), create_log_level_program() ], add_help = False)
 
 
+def create_repository_path_program() -> ArgumentParser:
+	program = ArgumentParser(add_help = False)
+	program.add_argument('--repository-path', help = 'Path to the face repository directory', default = '.facefusion_repository')
+	return program
+
+
+def create_person_name_program() -> ArgumentParser:
+	program = ArgumentParser(add_help = False)
+	program.add_argument('--person', help = 'Person name in the repository', required = True)
+	return program
+
+
 def create_program() -> ArgumentParser:
 	program = ArgumentParser(formatter_class = create_help_formatter_large, add_help = False)
 	program._positionals.title = 'commands'
@@ -317,6 +329,11 @@ def create_program() -> ArgumentParser:
 	sub_program.add_parser('job-run-all', help = wording.get('help.job_run_all'), parents = [ create_config_path_program(), create_temp_path_program(), create_jobs_path_program(), collect_job_program(), create_halt_on_error_program() ], formatter_class = create_help_formatter_large)
 	sub_program.add_parser('job-retry', help = wording.get('help.job_retry'), parents = [ create_job_id_program(), create_config_path_program(), create_temp_path_program(), create_jobs_path_program(), collect_job_program() ], formatter_class = create_help_formatter_large)
 	sub_program.add_parser('job-retry-all', help = wording.get('help.job_retry_all'), parents = [ create_config_path_program(), create_temp_path_program(), create_jobs_path_program(), collect_job_program(), create_halt_on_error_program() ], formatter_class = create_help_formatter_large)
+	# repository
+	sub_program.add_parser('repo-init', help = 'Initialize a new face repository', parents = [ create_repository_path_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
+	sub_program.add_parser('repo-add', help = 'Add a face to the repository', parents = [ create_person_name_program(), create_source_paths_program(), create_repository_path_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
+	sub_program.add_parser('repo-list', help = 'List persons and faces in the repository', parents = [ create_repository_path_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
+	sub_program.add_parser('repo-execute', help = 'Execute face swapping using repository faces', parents = [ create_person_name_program(), create_target_path_program(), create_output_path_program(), create_repository_path_program(), create_config_path_program(), create_temp_path_program(), collect_step_program(), collect_job_program() ], formatter_class = create_help_formatter_large)
 	return ArgumentParser(parents = [ program ], formatter_class = create_help_formatter_small)
 
 

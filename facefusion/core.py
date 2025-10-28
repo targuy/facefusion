@@ -100,6 +100,10 @@ def route(args : Args) -> None:
 		error_code = route_job_runner()
 		hard_exit(error_code)
 
+	if state_manager.get_item('command') in [ 'repo-init', 'repo-add', 'repo-list', 'repo-execute' ]:
+		error_code = route_repository(args)
+		hard_exit(error_code)
+
 
 def pre_check() -> bool:
 	if sys.version_info < (3, 10):
@@ -280,6 +284,58 @@ def route_job_runner() -> ErrorCode:
 			return 0
 		logger.info(wording.get('processing_jobs_failed'), __name__)
 		return 1
+	return 2
+
+
+def route_repository(args : Args) -> ErrorCode:
+	from facefusion_repository import cli as repo_cli
+	
+	repository_path = args.get('repository_path', '.facefusion_repository')
+	
+	if state_manager.get_item('command') == 'repo-init':
+		return repo_cli.repo_init(repository_path)
+	
+	if state_manager.get_item('command') == 'repo-add':
+		person_name = args.get('person')
+		source_paths = args.get('source_paths', [])
+		
+		if not person_name:
+			logger.error('Person name is required (--person)', __name__)
+			return 1
+		
+		if not source_paths:
+			logger.error('Source path is required (-s or --source-paths)', __name__)
+			return 1
+		
+		# Add the first source path (for simplicity, process one at a time)
+		return repo_cli.repo_add(person_name, source_paths[0], repository_path)
+	
+	if state_manager.get_item('command') == 'repo-list':
+		return repo_cli.repo_list(repository_path)
+	
+	if state_manager.get_item('command') == 'repo-execute':
+		person_name = args.get('person')
+		target_path = args.get('target_path')
+		output_path = args.get('output_path')
+		
+		if not person_name:
+			logger.error('Person name is required (--person)', __name__)
+			return 1
+		
+		if not target_path:
+			logger.error('Target path is required (-t or --target-path)', __name__)
+			return 1
+		
+		if not output_path:
+			logger.error('Output path is required (-o or --output-path)', __name__)
+			return 1
+		
+		# Ensure common pre-checks pass
+		if not common_pre_check() or not processors_pre_check():
+			return 2
+		
+		return repo_cli.repo_execute(person_name, target_path, output_path, repository_path)
+	
 	return 2
 
 
