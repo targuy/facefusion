@@ -29,7 +29,8 @@ class QualityMetrics:
 class FaceMetadata:
     """Metadata for a face entry."""
     added_date: str
-    name: Optional[str] = None
+    person: str  # Mandatory person name (replaces collection concept)
+    name: Optional[str] = None  # Optional descriptive name (e.g., "frontal", "profile")
     tags: List[str] = field(default_factory=list)
 
 
@@ -43,6 +44,11 @@ class FaceEntry:
     face_embedding: NDArray[numpy.float64]
     face_landmarks: Dict[str, Any]
     metadata: FaceMetadata
+    # 3D orientation data (pitch/yaw/tilt)
+    pitch: Optional[float] = None  # Up/down angle
+    yaw: Optional[float] = None  # Left/right angle
+    tilt: Optional[float] = None  # Rotation angle
+    occlusion_score: Optional[float] = None  # 0.0-1.0, lower is better
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
@@ -62,14 +68,27 @@ class FaceEntry:
             'face_landmarks': self.face_landmarks,
             'metadata': {
                 'added_date': self.metadata.added_date,
+                'person': self.metadata.person,
                 'name': self.metadata.name,
                 'tags': self.metadata.tags
-            }
+            },
+            'pitch': self.pitch,
+            'yaw': self.yaw,
+            'tilt': self.tilt,
+            'occlusion_score': self.occlusion_score
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'FaceEntry':
         """Deserialize from dictionary."""
+        # Support both old format (without person) and new format
+        metadata_data = data['metadata']
+        person = metadata_data.get('person')
+        
+        # Migration: use 'name' as person if person is not present (backward compatibility)
+        if person is None:
+            person = metadata_data.get('name', 'unknown')
+        
         return cls(
             id=data['id'],
             file_path=data['file_path'],
@@ -85,10 +104,15 @@ class FaceEntry:
             face_embedding=numpy.array(data['face_embedding']),
             face_landmarks=data['face_landmarks'],
             metadata=FaceMetadata(
-                added_date=data['metadata']['added_date'],
-                name=data['metadata'].get('name'),
-                tags=data['metadata'].get('tags', [])
-            )
+                added_date=metadata_data['added_date'],
+                person=person,
+                name=metadata_data.get('name'),
+                tags=metadata_data.get('tags', [])
+            ),
+            pitch=data.get('pitch'),
+            yaw=data.get('yaw'),
+            tilt=data.get('tilt'),
+            occlusion_score=data.get('occlusion_score')
         )
 
 
@@ -261,7 +285,95 @@ class CoverageReport:
     faces_per_orientation: Dict[int, int]
 
 
+# GPU Types
+
+@dataclass
+class GPUInfo:
+    """Information about available GPU."""
+    device_id: int
+    name: str
+    memory_total: int  # MB
+    memory_available: int  # MB
+    compute_capability: Optional[str] = None
+    driver_version: Optional[str] = None
+
+
+@dataclass
+class GPUConfig:
+    """GPU configuration settings."""
+    enabled: bool = True
+    device_ids: List[int] = field(default_factory=lambda: [0])
+    memory_limit: Optional[int] = None  # MB
+    providers: List[str] = field(default_factory=lambda: ['CUDAExecutionProvider', 'CPUExecutionProvider'])
+
+
+# Preview System Types
+
+@dataclass
+class PreviewResult:
+    """Result of preview operation."""
+    success: bool
+    preview_path: Optional[str] = None
+    quality_score: Optional[float] = None
+    orientation_match: Optional[str] = None
+    warnings: List[str] = field(default_factory=list)
+
+
+@dataclass
+class TestImage:
+    """Test image for preview system."""
+    path: str
+    orientation_angle: int
+    face_count: int
+    best_face_quality: float
+
+
+# 3D Orientation Types
+
+@dataclass
+class Pose3D:
+    """3D pose estimation data."""
+    pitch: float  # Up/down rotation (-90 to 90)
+    yaw: float  # Left/right rotation (-90 to 90)
+    tilt: float  # Head tilt (-180 to 180)
+    confidence: float  # 0.0 to 1.0
+
+
+@dataclass
+class OcclusionInfo:
+    """Face occlusion information."""
+    score: float  # 0.0 (no occlusion) to 1.0 (fully occluded)
+    occluded_landmarks: List[str]  # Names of occluded landmarks
+    is_usable: bool  # Whether face is usable despite occlusion
+
+
+# FaceFusion Integration Types
+
+@dataclass
+class DestinationSelectionSettings:
+    """FaceFusion destination selection settings."""
+    face_selector_mode: str = 'reference'  # 'reference', 'one', 'many', 'best-quality', etc.
+    face_index: Optional[int] = None
+    reference_face_position: int = 0
+    reference_face_distance: float = 0.6
+    reference_frame_number: int = 0
+
+
+@dataclass
+class QueueEntry:
+    """Enhanced queue entry with FaceFusion destination selection."""
+    queue_id: str
+    source_person: str  # Person name
+    source_face_id: str
+    destination_media: str
+    destination_selection: DestinationSelectionSettings
+    processing_settings: Optional[str] = None  # Settings profile name
+    created_date: Optional[str] = None
+    status: str = 'pending'  # 'pending', 'processing', 'completed', 'failed'
+
+
 # Type Aliases
 ProgressCallback: TypeAlias = Callable[[int, int, str], None]
 OrientationAngle: TypeAlias = int  # 0-360
 FaceID: TypeAlias = str
+PersonName: TypeAlias = str

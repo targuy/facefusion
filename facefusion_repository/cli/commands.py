@@ -33,8 +33,13 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
         help='Path to face image'
     )
     parser_add.add_argument(
+        '--person',
+        required=True,
+        help='Person name (mandatory)'
+    )
+    parser_add.add_argument(
         '--name',
-        help='Name for the face'
+        help='Optional descriptive name for this face (e.g., "frontal", "profile")'
     )
     parser_add.add_argument(
         '--tags',
@@ -46,6 +51,10 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
     parser_list = subparsers.add_parser(
         'repo-list',
         help='List faces in repository'
+    )
+    parser_list.add_argument(
+        '--person',
+        help='Filter by person name'
     )
     parser_list.add_argument(
         '--orientation',
@@ -87,7 +96,18 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
         'repo-stats',
         help='Show repository statistics'
     )
+    parser_stats.add_argument(
+        '--person',
+        help='Show statistics for specific person'
+    )
     parser_stats.set_defaults(func=cmd_repo_stats)
+
+    # repo-people command
+    parser_people = subparsers.add_parser(
+        'repo-people',
+        help='List all people in repository'
+    )
+    parser_people.set_defaults(func=cmd_repo_people)
 
 
 def cmd_repo_init(args: argparse.Namespace) -> int:
@@ -122,7 +142,7 @@ def cmd_repo_add_face(args: argparse.Namespace) -> int:
     Returns:
         Exit code (0 for success)
     """
-    print(f'Adding face from: {args.source}')
+    print(f'Adding face for {args.person} from: {args.source}')
 
     # Parse tags if provided
     tags = None
@@ -132,6 +152,7 @@ def cmd_repo_add_face(args: argparse.Namespace) -> int:
     repo = RepositoryManager()
     face_id = repo.add_face(
         image_path=args.source,
+        person=args.person,
         name=args.name,
         tags=tags
     )
@@ -139,6 +160,7 @@ def cmd_repo_add_face(args: argparse.Namespace) -> int:
     if face_id:
         print('✓ Face added successfully!')
         print('  ID: {}'.format(face_id))
+        print('  Person: {}'.format(args.person))
         if args.name:
             print('  Name: {}'.format(args.name))
         if tags:
@@ -173,13 +195,14 @@ def cmd_repo_list(args: argparse.Namespace) -> int:
 
     repo = RepositoryManager()
     faces = repo.list_faces(
+        filter_by_person=args.person,
         filter_by_orientation=args.orientation,
         filter_by_tags=filter_tags
     )
 
     if not faces:
         print('No faces found in repository.')
-        if args.orientation or filter_tags:
+        if args.person or args.orientation or filter_tags:
             print('Try removing filters to see all faces.')
         return 0
 
@@ -188,6 +211,7 @@ def cmd_repo_list(args: argparse.Namespace) -> int:
 
     for face in faces:
         print('ID: {}'.format(face.id))
+        print('  Person: {}'.format(face.metadata.person))
         print('  Name: {}'.format(face.metadata.name or 'Unnamed'))
         print('  Orientation: {}°'.format(face.orientation_angle))
         print('  Quality: {:.2f}'.format(face.quality_metrics.overall_quality))
@@ -220,6 +244,7 @@ def cmd_repo_show(args: argparse.Namespace) -> int:
     print('Face Details: {}'.format(args.face_id))
     print('=' * 60)
     print()
+    print('Person: {}'.format(face.metadata.person))
     print('Name: {}'.format(face.metadata.name or 'Unnamed'))
     print('File: {}'.format(face.file_path))
     print('Orientation: {}°'.format(face.orientation_angle))
@@ -272,6 +297,28 @@ def cmd_repo_stats(args: argparse.Namespace) -> int:
         Exit code (0 for success)
     """
     repo = RepositoryManager()
+    
+    # If person is specified, show person-specific stats
+    if hasattr(args, 'person') and args.person:
+        stats = repo.get_person_statistics(args.person)
+        if not stats:
+            print(f'No faces found for person: {args.person}')
+            return 1
+        
+        print(f'Statistics for {args.person}:')
+        print('-' * 60)
+        print(f'Total Faces: {stats.total_faces}')
+        print(f'Average Quality: {stats.average_quality:.2f}')
+        print(f'Total Size: {stats.total_size_mb:.2f} MB')
+        print()
+        print('Faces by Orientation:')
+        for angle in sorted(stats.faces_by_orientation.keys()):
+            count = stats.faces_by_orientation[angle]
+            print(f'  {angle}°: {count} face(s)')
+        
+        return 0
+    
+    # Show overall repository stats
     matrix = CompatibilityMatrix(repo)
 
     # Show compatibility matrix visualization
@@ -290,5 +337,47 @@ def cmd_repo_stats(args: argparse.Namespace) -> int:
     if coverage.missing_orientations:
         print(f'\nMissing Orientations: {", ".join(str(a) + "°" for a in coverage.missing_orientations)}')
         print('\nRecommendation: Add faces at missing orientations for complete coverage.')
+    
+    # Show people count
+    people = repo.list_people()
+    print(f'\nTotal People: {len(people)}')
+    if people:
+        print('People in repository:')
+        for person in people:
+            person_faces = repo.list_faces(filter_by_person=person)
+            print(f'  - {person}: {len(person_faces)} face(s)')
+
+    return 0
+
+
+def cmd_repo_people(args: argparse.Namespace) -> int:
+    """
+    List all people in repository command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    repo = RepositoryManager()
+    people = repo.list_people()
+
+    if not people:
+        print('No people found in repository.')
+        return 0
+
+    print('People in repository:')
+    print('-' * 60)
+    
+    for person in people:
+        faces = repo.list_faces(filter_by_person=person)
+        stats = repo.get_person_statistics(person)
+        
+        print(f'\n{person}:')
+        print(f'  Total Faces: {len(faces)}')
+        if stats:
+            print(f'  Average Quality: {stats.average_quality:.2f}')
+            print(f'  Orientations: {", ".join(str(a) + "°" for a in sorted(stats.faces_by_orientation.keys()))}')
 
     return 0

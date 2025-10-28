@@ -14,6 +14,7 @@ from facefusion_repository.cli.commands import (
     cmd_repo_add_face,
     cmd_repo_init,
     cmd_repo_list,
+    cmd_repo_people,
     cmd_repo_remove,
     cmd_repo_show,
     cmd_repo_stats
@@ -53,8 +54,13 @@ def create_parser() -> argparse.ArgumentParser:
         help='Path to face image'
     )
     parser_add.add_argument(
+        '--person',
+        required=True,
+        help='Person name (mandatory)'
+    )
+    parser_add.add_argument(
         '--name',
-        help='Name for the face'
+        help='Optional descriptive name for this face (e.g., "frontal", "profile")'
     )
     parser_add.add_argument(
         '--tags',
@@ -65,6 +71,10 @@ def create_parser() -> argparse.ArgumentParser:
     parser_list = subparsers.add_parser(
         'list',
         help='List faces in repository'
+    )
+    parser_list.add_argument(
+        '--person',
+        help='Filter by person name'
     )
     parser_list.add_argument(
         '--orientation',
@@ -103,6 +113,16 @@ def create_parser() -> argparse.ArgumentParser:
         'stats',
         help='Show repository statistics'
     )
+    parser_stats.add_argument(
+        '--person',
+        help='Show statistics for specific person'
+    )
+
+    # repo-people
+    parser_people = subparsers.add_parser(
+        'people',
+        help='List all people in repository'
+    )
 
     return parser
 
@@ -139,7 +159,8 @@ def main() -> int:
         'list': cmd_repo_list,
         'show': cmd_repo_show,
         'remove': cmd_repo_remove,
-        'stats': cmd_repo_stats
+        'stats': cmd_repo_stats,
+        'people': cmd_repo_people
     }
 
     command_func = command_map.get(args.command)

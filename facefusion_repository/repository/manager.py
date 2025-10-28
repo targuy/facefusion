@@ -38,8 +38,12 @@ class RepositoryManager:
             repository_path = os.path.expanduser('~/.facefusion_repository')
 
         self.repository_path = Path(repository_path)
-        self.repository_file = self.repository_path / 'repository.json'
+        self.repository_file = self.repository_path / 'metadata.json'
         self.faces_dir = self.repository_path / 'faces'
+        self.settings_dir = self.repository_path / 'settings'
+        self.presets_dir = self.repository_path / 'presets'
+        self.queues_dir = self.repository_path / 'queues'
+        self.test_images_dir = self.repository_path / 'test_images'
 
         self._faces: Dict[str, FaceEntry] = {}
         self._loaded = False
@@ -55,11 +59,15 @@ class RepositoryManager:
             # Create directories
             self.repository_path.mkdir(parents=True, exist_ok=True)
             self.faces_dir.mkdir(parents=True, exist_ok=True)
+            self.settings_dir.mkdir(parents=True, exist_ok=True)
+            self.presets_dir.mkdir(parents=True, exist_ok=True)
+            self.queues_dir.mkdir(parents=True, exist_ok=True)
+            self.test_images_dir.mkdir(parents=True, exist_ok=True)
 
             # Create empty repository file if it doesn't exist
             if not self.repository_file.exists():
                 repository_data = {
-                    'version': '1.0.0',
+                    'version': '2.0.0',  # Updated version for person-based structure
                     'created_date': datetime.utcnow().isoformat() + 'Z',
                     'last_modified': datetime.utcnow().isoformat() + 'Z',
                     'faces': []
@@ -81,6 +89,17 @@ class RepositoryManager:
         """
         if self._loaded:
             return True
+
+        # Support both old 'repository.json' and new 'metadata.json'
+        old_file = self.repository_path / 'repository.json'
+        if not self.repository_file.exists() and old_file.exists():
+            # Migrate from old format
+            print('Migrating repository from old format...')
+            try:
+                shutil.copy2(old_file, self.repository_file)
+            except Exception as e:
+                print(f'Warning: Could not migrate repository file: {e}')
+                return False
 
         if not self.repository_file.exists():
             return False
@@ -121,6 +140,10 @@ class RepositoryManager:
             # Update faces and modification time
             data['last_modified'] = datetime.utcnow().isoformat() + 'Z'
             data['faces'] = [face.to_dict() for face in self._faces.values()]
+            
+            # Update version to 2.0.0 if saving with person-based structure
+            if any(face.metadata.person for face in self._faces.values()):
+                data['version'] = '2.0.0'
 
             # Write to file
             with open(self.repository_file, 'w', encoding='utf-8') as f:
@@ -134,6 +157,7 @@ class RepositoryManager:
     def add_face(
         self,
         image_path: str,
+        person: str,
         name: Optional[str] = None,
         tags: Optional[List[str]] = None,
         quality_thresholds: Optional[QualityThresholds] = None
@@ -143,13 +167,21 @@ class RepositoryManager:
 
         Args:
             image_path: Path to face image
-            name: Optional name for the face
+            person: Person name (mandatory, replaces collection concept)
+            name: Optional descriptive name for this specific face (e.g., "frontal", "profile")
             tags: Optional tags for categorization
             quality_thresholds: Optional custom quality thresholds
 
         Returns:
             Face ID if successful, None otherwise
         """
+        # Validate person name
+        if not person or not person.strip():
+            print('Error: Person name is required')
+            return None
+        
+        person = person.strip()
+
         # Load repository
         if not self._load_repository():
             if not self.initialize_repository():
@@ -188,17 +220,22 @@ class RepositoryManager:
             # Get orientation angle
             orientation_angle = OrientationMatcher.get_closest_standard_angle(face.angle)
 
-            # Check for similar orientation faces (potential duplicates)
-            similar_faces = [
+            # Check for similar orientation faces for this person (potential duplicates)
+            person_faces = [
                 f for f in self._faces.values()
+                if f.metadata.person == person
+            ]
+            
+            similar_faces = [
+                f for f in person_faces
                 if OrientationMatcher.is_orientation_similar(f.orientation_angle, orientation_angle)
             ]
 
-            # If similar faces exist, only keep the highest quality one
+            # If similar faces exist for this person, only keep the highest quality one
             if similar_faces:
                 best_existing = OrientationMatcher.get_best_quality_face(similar_faces)
                 if best_existing and best_existing.quality_metrics.overall_quality > quality_metrics.overall_quality:
-                    print(f'Higher quality face already exists for orientation {orientation_angle}')
+                    print(f'Higher quality face already exists for {person} at orientation {orientation_angle}')
                     return None
 
                 # Remove lower quality faces
@@ -209,13 +246,17 @@ class RepositoryManager:
             # Generate unique ID
             face_id = f'face_{datetime.utcnow().strftime("%Y%m%d")}_{uuid.uuid4().hex[:8]}'
 
-            # Copy image to repository
+            # Create person directory if it doesn't exist
+            person_dir = self.faces_dir / person
+            person_dir.mkdir(parents=True, exist_ok=True)
+
+            # Copy image to person's repository directory
             image_filename = f'{face_id}{Path(image_path).suffix}'
-            dest_path = self.faces_dir / image_filename
+            dest_path = person_dir / image_filename
 
             shutil.copy2(image_path, dest_path)
 
-            # Create face entry
+            # Create face entry with person
             face_entry = FaceEntry(
                 id=face_id,
                 file_path=str(dest_path),
@@ -228,6 +269,7 @@ class RepositoryManager:
                 },
                 metadata=FaceMetadata(
                     added_date=datetime.utcnow().isoformat() + 'Z',
+                    person=person,
                     name=name,
                     tags=tags or []
                 )
@@ -240,7 +282,7 @@ class RepositoryManager:
             if not self._save_repository():
                 return None
 
-            print(f'Successfully added face: {face_id}')
+            print(f'Successfully added face for {person}: {face_id}')
             return face_id
 
         except Exception as e:
@@ -264,6 +306,7 @@ class RepositoryManager:
 
     def list_faces(
         self,
+        filter_by_person: Optional[str] = None,
         filter_by_orientation: Optional[int] = None,
         filter_by_tags: Optional[List[str]] = None
     ) -> List[FaceEntry]:
@@ -271,6 +314,7 @@ class RepositoryManager:
         List all faces with optional filters.
 
         Args:
+            filter_by_person: Filter by person name
             filter_by_orientation: Filter by specific orientation angle
             filter_by_tags: Filter by tags (face must have all specified tags)
 
@@ -281,6 +325,10 @@ class RepositoryManager:
             return []
 
         faces = list(self._faces.values())
+
+        # Apply person filter
+        if filter_by_person is not None:
+            faces = [f for f in faces if f.metadata.person == filter_by_person]
 
         # Apply orientation filter
         if filter_by_orientation is not None:
@@ -337,7 +385,7 @@ class RepositoryManager:
 
         Args:
             face_id: Face identifier
-            **kwargs: Metadata fields to update (name, tags)
+            **kwargs: Metadata fields to update (person, name, tags)
 
         Returns:
             True if update successful
@@ -352,6 +400,21 @@ class RepositoryManager:
             face_entry = self._faces[face_id]
 
             # Update allowed fields
+            if 'person' in kwargs:
+                # If changing person, need to move the file to new person directory
+                new_person = kwargs['person']
+                if new_person != face_entry.metadata.person:
+                    # Create new person directory
+                    new_person_dir = self.faces_dir / new_person
+                    new_person_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    # Move file
+                    old_path = Path(face_entry.file_path)
+                    new_path = new_person_dir / old_path.name
+                    shutil.move(str(old_path), str(new_path))
+                    face_entry.file_path = str(new_path)
+                    
+                face_entry.metadata.person = new_person
             if 'name' in kwargs:
                 face_entry.metadata.name = kwargs['name']
             if 'tags' in kwargs:
@@ -362,6 +425,62 @@ class RepositoryManager:
         except Exception as e:
             print(f'Error updating face: {e}')
             return False
+
+    def list_people(self) -> List[str]:
+        """
+        List all unique person names in the repository.
+
+        Returns:
+            List of person names
+        """
+        if not self._load_repository():
+            return []
+
+        people = set(face.metadata.person for face in self._faces.values())
+        return sorted(list(people))
+
+    def get_person_statistics(self, person: str) -> Optional[RepositoryStats]:
+        """
+        Get statistics for a specific person.
+
+        Args:
+            person: Person name
+
+        Returns:
+            RepositoryStats object or None
+        """
+        if not self._load_repository():
+            return None
+
+        person_faces = [f for f in self._faces.values() if f.metadata.person == person]
+
+        if not person_faces:
+            return None
+
+        # Count faces by orientation
+        faces_by_orientation: Dict[int, int] = {}
+        for face in person_faces:
+            angle = face.orientation_angle
+            faces_by_orientation[angle] = faces_by_orientation.get(angle, 0) + 1
+
+        # Calculate average quality
+        total_quality = sum(f.quality_metrics.overall_quality for f in person_faces)
+        average_quality = total_quality / len(person_faces)
+
+        # Calculate total size
+        total_size_bytes = sum(
+            os.path.getsize(f.file_path) if os.path.exists(f.file_path) else 0
+            for f in person_faces
+        )
+        total_size_mb = total_size_bytes / (1024 * 1024)
+
+        return RepositoryStats(
+            total_faces=len(person_faces),
+            faces_by_orientation=faces_by_orientation,
+            average_quality=average_quality,
+            total_size_mb=total_size_mb,
+            unique_names=1
+        )
 
     def get_statistics(self) -> Optional[RepositoryStats]:
         """
