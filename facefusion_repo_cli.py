@@ -16,7 +16,12 @@ from facefusion_repository.cli.commands import (
     cmd_repo_list,
     cmd_repo_remove,
     cmd_repo_show,
-    cmd_repo_stats
+    cmd_repo_stats,
+    cmd_analyze_destination,
+    cmd_show_queues,
+    cmd_export_queue,
+    cmd_clear_queues,
+    cmd_queue_stats
 )
 
 
@@ -104,6 +109,72 @@ def create_parser() -> argparse.ArgumentParser:
         help='Show repository statistics'
     )
 
+    # analyze-destination
+    parser_analyze = subparsers.add_parser(
+        'analyze-destination',
+        help='Analyze destination media and create processing queues'
+    )
+    parser_analyze.add_argument(
+        '--source',
+        required=True,
+        help='Path to destination image or video'
+    )
+    parser_analyze.add_argument(
+        '--frame-sample-rate',
+        type=int,
+        default=1,
+        help='For videos, process every Nth frame (default: 1)'
+    )
+    parser_analyze.add_argument(
+        '--min-confidence',
+        type=float,
+        default=0.5,
+        help='Minimum match confidence (0.0-1.0, default: 0.5)'
+    )
+    parser_analyze.add_argument(
+        '--no-queues',
+        action='store_true',
+        help='Do not create processing queues (analysis only)'
+    )
+
+    # show-queues
+    parser_show_queues = subparsers.add_parser(
+        'show-queues',
+        help='Display current processing queues'
+    )
+
+    # export-queue
+    parser_export = subparsers.add_parser(
+        'export-queue',
+        help='Export specific queue to JSON file'
+    )
+    parser_export.add_argument(
+        '--face-id',
+        required=True,
+        help='Source face ID of queue to export'
+    )
+    parser_export.add_argument(
+        '--output',
+        required=True,
+        help='Output JSON file path'
+    )
+
+    # clear-queues
+    parser_clear = subparsers.add_parser(
+        'clear-queues',
+        help='Clear all or specific processing queues'
+    )
+    parser_clear.add_argument(
+        '--face-id',
+        help='Source face ID to clear (if not specified, clears all)'
+    )
+
+    # queue-stats
+    parser_queue_stats = subparsers.add_parser(
+        'queue-stats',
+        help='Show detailed queue statistics'
+    )
+
     return parser
 
 
@@ -139,7 +210,12 @@ def main() -> int:
         'list': cmd_repo_list,
         'show': cmd_repo_show,
         'remove': cmd_repo_remove,
-        'stats': cmd_repo_stats
+        'stats': cmd_repo_stats,
+        'analyze-destination': cmd_analyze_destination,
+        'show-queues': cmd_show_queues,
+        'export-queue': cmd_export_queue,
+        'clear-queues': cmd_clear_queues,
+        'queue-stats': cmd_queue_stats
     }
 
     command_func = command_map.get(args.command)

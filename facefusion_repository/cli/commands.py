@@ -6,6 +6,8 @@ import argparse
 
 from facefusion_repository.repository.compatibility_matrix import CompatibilityMatrix
 from facefusion_repository.repository.manager import RepositoryManager
+from facefusion_repository.destination.analyzer import DestinationAnalyzer
+from facefusion_repository.destination.queue_manager import QueueManager
 
 
 def register_repository_commands(subparsers: argparse._SubParsersAction) -> None:
@@ -88,6 +90,77 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
         help='Show repository statistics'
     )
     parser_stats.set_defaults(func=cmd_repo_stats)
+
+    # analyze-destination command
+    parser_analyze = subparsers.add_parser(
+        'analyze-destination',
+        help='Analyze destination media and create processing queues'
+    )
+    parser_analyze.add_argument(
+        '--source',
+        required=True,
+        help='Path to destination image or video'
+    )
+    parser_analyze.add_argument(
+        '--frame-sample-rate',
+        type=int,
+        default=1,
+        help='For videos, process every Nth frame (default: 1)'
+    )
+    parser_analyze.add_argument(
+        '--min-confidence',
+        type=float,
+        default=0.5,
+        help='Minimum match confidence (0.0-1.0, default: 0.5)'
+    )
+    parser_analyze.add_argument(
+        '--no-queues',
+        action='store_true',
+        help='Do not create processing queues (analysis only)'
+    )
+    parser_analyze.set_defaults(func=cmd_analyze_destination)
+
+    # show-queues command
+    parser_show_queues = subparsers.add_parser(
+        'show-queues',
+        help='Display current processing queues'
+    )
+    parser_show_queues.set_defaults(func=cmd_show_queues)
+
+    # export-queue command
+    parser_export = subparsers.add_parser(
+        'export-queue',
+        help='Export specific queue to JSON file'
+    )
+    parser_export.add_argument(
+        '--face-id',
+        required=True,
+        help='Source face ID of queue to export'
+    )
+    parser_export.add_argument(
+        '--output',
+        required=True,
+        help='Output JSON file path'
+    )
+    parser_export.set_defaults(func=cmd_export_queue)
+
+    # clear-queues command
+    parser_clear = subparsers.add_parser(
+        'clear-queues',
+        help='Clear all or specific processing queues'
+    )
+    parser_clear.add_argument(
+        '--face-id',
+        help='Source face ID to clear (if not specified, clears all)'
+    )
+    parser_clear.set_defaults(func=cmd_clear_queues)
+
+    # queue-stats command
+    parser_queue_stats = subparsers.add_parser(
+        'queue-stats',
+        help='Show detailed queue statistics'
+    )
+    parser_queue_stats.set_defaults(func=cmd_queue_stats)
 
 
 def cmd_repo_init(args: argparse.Namespace) -> int:
@@ -291,4 +364,219 @@ def cmd_repo_stats(args: argparse.Namespace) -> int:
         print(f'\nMissing Orientations: {", ".join(str(a) + "°" for a in coverage.missing_orientations)}')
         print('\nRecommendation: Add faces at missing orientations for complete coverage.')
 
+    return 0
+
+
+def cmd_analyze_destination(args: argparse.Namespace) -> int:
+    """
+    Analyze destination media command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    print(f'Analyzing destination media: {args.source}')
+    print()
+
+    # Initialize analyzer
+    analyzer = DestinationAnalyzer()
+
+    # Progress callback for videos
+    def progress_callback(current: int, total: int, message: str) -> None:
+        if current % 30 == 0 or current == total - 1:  # Update every 30 frames
+            percent = (current / total * 100) if total > 0 else 0
+            print(f'  {message} ({percent:.1f}%)')
+
+    try:
+        # Analyze media
+        result = analyzer.analyze_media(
+            media_path=args.source,
+            frame_sample_rate=args.frame_sample_rate,
+            min_confidence=args.min_confidence,
+            create_queues=not args.no_queues,
+            progress_callback=progress_callback
+        )
+
+        if not result:
+            print('✗ Failed to analyze media (unsupported format or error)')
+            return 1
+
+        # Display results
+        print()
+        print('Analysis Complete!')
+        print('=' * 60)
+        print(f'Source File: {result.source_file}')
+        print(f'Total Faces Detected: {result.total_faces_detected}')
+        print(f'Total Faces Matched: {result.total_faces_matched}')
+
+        if result.total_faces_detected > 0:
+            match_rate = result.total_faces_matched / result.total_faces_detected * 100
+            print(f'Match Rate: {match_rate:.1f}%')
+
+        print(f'Processing Time: {result.processing_time:.2f}s')
+        print()
+
+        # Show match summary
+        summary = result.get_summary()
+        if summary['matches_by_face']:
+            print('Matches by Repository Face:')
+            for face_id, count in summary['matches_by_face'].items():
+                # Get face name
+                repo = RepositoryManager()
+                face = repo.get_face(face_id)
+                name = face.metadata.name if face and face.metadata.name else 'Unnamed'
+                print(f'  {face_id} ({name}): {count} matches')
+            print()
+
+        if not args.no_queues and result.total_faces_matched > 0:
+            print('✓ Processing queues created successfully')
+            print('  Use "show-queues" to view queues')
+
+        return 0
+
+    except Exception as e:
+        print(f'✗ Error analyzing destination: {e}')
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
+def cmd_show_queues(args: argparse.Namespace) -> int:
+    """
+    Show processing queues command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    queue_manager = QueueManager()
+    queues = queue_manager.list_queues()
+
+    if not queues:
+        print('No processing queues found.')
+        print('Use "analyze-destination" to create queues.')
+        return 0
+
+    print('Processing Queues:')
+    print('=' * 60)
+    print()
+
+    repo = RepositoryManager()
+
+    for queue in queues:
+        face = repo.get_face(queue.source_face_id)
+        face_name = face.metadata.name if face and face.metadata.name else 'Unnamed'
+
+        print(f'Queue: {queue.source_face_id}')
+        print(f'  Name: {face_name}')
+        print(f'  Matches: {queue.get_size()}')
+        print(f'  Average Confidence: {queue.get_average_confidence():.2f}')
+        print(f'  Created: {queue.created_date}')
+        print()
+
+    # Show statistics
+    stats = queue_manager.get_statistics()
+    print('Summary:')
+    print('-' * 60)
+    print(f'Total Queues: {stats.total_queues}')
+    print(f'Total Faces: {stats.total_faces}')
+
+    return 0
+
+
+def cmd_export_queue(args: argparse.Namespace) -> int:
+    """
+    Export queue command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    queue_manager = QueueManager()
+
+    if queue_manager.export_queue(args.face_id, args.output):
+        print(f'✓ Queue exported successfully to: {args.output}')
+        return 0
+    else:
+        print(f'✗ Failed to export queue (queue not found or error)')
+        return 1
+
+
+def cmd_clear_queues(args: argparse.Namespace) -> int:
+    """
+    Clear queues command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    queue_manager = QueueManager()
+
+    if args.face_id:
+        # Clear specific queue
+        if queue_manager.clear_queue(args.face_id):
+            print(f'✓ Queue cleared: {args.face_id}')
+            return 0
+        else:
+            print(f'✗ Failed to clear queue (not found or error)')
+            return 1
+    else:
+        # Clear all queues
+        if queue_manager.clear_all_queues():
+            print('✓ All queues cleared')
+            return 0
+        else:
+            print('✗ Failed to clear queues')
+            return 1
+
+
+def cmd_queue_stats(args: argparse.Namespace) -> int:
+    """
+    Show queue statistics command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    queue_manager = QueueManager()
+    stats = queue_manager.get_statistics()
+
+    if stats.total_queues == 0:
+        print('No processing queues found.')
+        return 0
+
+    print('Queue Statistics:')
+    print('=' * 60)
+    print()
+    print(f'Total Queues: {stats.total_queues}')
+    print(f'Total Faces: {stats.total_faces}')
+    print()
+
+    if stats.faces_per_queue:
+        print('Faces per Queue:')
+        repo = RepositoryManager()
+
+        # Sort by face count descending
+        sorted_queues = sorted(
+            stats.faces_per_queue.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+        for face_id, count in sorted_queues:
+            face = repo.get_face(face_id)
+            name = face.metadata.name if face and face.metadata.name else 'Unnamed'
+            print(f'  {face_id} ({name}): {count} faces')
+
+    return 0
     return 0
