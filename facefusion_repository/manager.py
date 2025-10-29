@@ -10,6 +10,7 @@ from facefusion_repository.orientation import check_orientation_overlap, extract
 from facefusion_repository.quality_assessor import assess_face_from_path
 from facefusion_repository.storage import Storage
 from facefusion_repository.types import FaceMetadata, PersonEntry
+from facefusion_repository.zone_manager import calculate_zone_from_orientation
 
 
 class RepositoryManager:
@@ -331,3 +332,81 @@ class RepositoryManager:
 			'face_count': len(stored_face_paths),
 			'face_metadata': face_metadata if face_metadata else None
 		})
+	
+	def preview_face_import(
+		self,
+		face_path: str,
+		test_faces_dir: Optional[str] = None,
+		max_test_faces: int = 5
+	) -> Dict[str, any]:
+		"""
+		Generate preview of face import on test faces.
+		
+		Args:
+			face_path: Path to face to preview
+			test_faces_dir: Optional directory with test faces
+			max_test_faces: Maximum number of test faces to use
+		
+		Returns:
+			Dictionary with preview results
+		"""
+		from facefusion_repository.preview import generate_import_preview
+		from facefusion_repository.test_faces import get_test_faces
+		
+		# Get test faces
+		test_faces = get_test_faces(test_faces_dir, max_test_faces)
+		
+		if not test_faces:
+			logger.warn("No test faces found for preview", __name__.upper())
+			return {'success': False, 'message': 'No test faces available'}
+		
+		# Generate previews
+		preview_results = generate_import_preview(face_path, test_faces)
+		
+		return {
+			'success': True,
+			'test_face_count': len(test_faces),
+			'preview_results': preview_results
+		}
+	
+	def compare_faces_on_test_cases(
+		self,
+		existing_face_path: str,
+		new_face_path: str,
+		test_faces_dir: Optional[str] = None,
+		max_test_faces: int = 5
+	) -> Dict[str, any]:
+		"""
+		Compare two faces on test cases for overlap resolution.
+		
+		Args:
+			existing_face_path: Path to existing repository face
+			new_face_path: Path to new face candidate
+			test_faces_dir: Optional directory with test faces
+			max_test_faces: Maximum number of test faces to use
+		
+		Returns:
+			Dictionary with comparison results
+		"""
+		from facefusion_repository.preview import compare_overlap_previews
+		from facefusion_repository.test_faces import get_test_faces
+		
+		# Get test faces
+		test_faces = get_test_faces(test_faces_dir, max_test_faces)
+		
+		if not test_faces:
+			logger.warn("No test faces found for comparison", __name__.upper())
+			return {'success': False, 'message': 'No test faces available'}
+		
+		# Generate comparisons
+		comparison_results = compare_overlap_previews(
+			existing_face_path,
+			new_face_path,
+			test_faces
+		)
+		
+		return {
+			'success': True,
+			'test_face_count': len(test_faces),
+			'comparison_results': comparison_results
+		}

@@ -183,6 +183,40 @@ def route_repository(args : Args) -> ErrorCode:
 		person_name = state_manager.get_item('person')
 		face_paths = state_manager.get_item('face_paths')
 		quality_threshold = state_manager.get_item('quality_threshold')
+		preview_on_test_faces = state_manager.get_item('preview_on_test_faces')
+		test_faces_dir = state_manager.get_item('test_faces_dir')
+		interactive = state_manager.get_item('interactive')
+		
+		# Handle preview workflow if enabled
+		if preview_on_test_faces or interactive:
+			from facefusion_repository.test_faces import get_test_faces, create_test_faces_directory
+			
+			# Ensure test faces directory exists
+			test_faces = get_test_faces(test_faces_dir)
+			if not test_faces:
+				logger.warn("No test faces found. Creating test faces directory...", __name__)
+				test_dir = create_test_faces_directory(test_faces_dir)
+				logger.info(f"Please add test face images to: {test_dir}", __name__)
+				logger.info("Proceeding without preview...", __name__)
+				preview_on_test_faces = False
+			else:
+				logger.info(f"Found {len(test_faces)} test faces for preview", __name__)
+				
+				# Preview each face before adding
+				for face_path in face_paths:
+					logger.info(f"Generating preview for: {face_path}", __name__)
+					preview_result = manager.preview_face_import(face_path, test_faces_dir)
+					
+					if preview_result['success']:
+						logger.info(f"Preview generated on {preview_result['test_face_count']} test faces", __name__)
+						
+						# In interactive mode, would prompt user here
+						if interactive:
+							logger.info("Interactive mode: would show preview and ask user to accept/reject", __name__)
+							# For minimal implementation, auto-accept
+							logger.info("Auto-accepting face (interactive UI not implemented)", __name__)
+					else:
+						logger.warn(f"Preview generation failed: {preview_result.get('message', 'Unknown error')}", __name__)
 		
 		try:
 			person = manager.create_person(
