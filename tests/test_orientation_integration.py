@@ -239,24 +239,26 @@ class TestOrientationWorkflow:
 		mock_read_image
 	):
 		"""Test that quality is compared when orientation overlaps are detected."""
+		from facefusion_repository.quality_assessor import QualityMetrics
+		
+		# Expected behavior: when faces have overlapping orientations,
+		# the system should keep the highest quality face
+		LOW_QUALITY = 0.3
+		HIGH_QUALITY = 0.8
+		MEDIUM_QUALITY = 0.6
+		
 		# Mock orientation extraction to return same orientation
 		with patch('facefusion_repository.orientation.extract_3d_orientation_from_landmarks') as mock_extract:
 			mock_extract.return_value = {'pitch': 10.0, 'yaw': 20.0, 'roll': 5.0}
 			
 			# Mock quality assessment to return different qualities
 			with patch('facefusion_repository.manager.assess_face_from_path') as mock_quality:
-				from facefusion_repository.quality_assessor import QualityMetrics
-				
-				# Quality assessment flow:
-				# 1. First face: assessed at copy time (0.3)
-				# 2. Second face: assessed for overlap comparison (0.8)
-				# 3. Second face: assessed again after copy for storage (0.8)
-				# 4. Third face: assessed for overlap comparison (0.6)
+				# Provide enough quality assessments for the workflow
 				qualities = [
-					QualityMetrics(0.3, 0.3, 0.3, 0.3, 0.3),  # First face: initial assessment
-					QualityMetrics(0.8, 0.8, 0.8, 0.8, 0.8),  # Second face: overlap comparison
-					QualityMetrics(0.8, 0.8, 0.8, 0.8, 0.8),  # Second face: storage assessment
-					QualityMetrics(0.6, 0.6, 0.6, 0.6, 0.6)   # Third face: overlap comparison (not stored)
+					QualityMetrics(LOW_QUALITY, LOW_QUALITY, LOW_QUALITY, LOW_QUALITY, LOW_QUALITY),
+					QualityMetrics(HIGH_QUALITY, HIGH_QUALITY, HIGH_QUALITY, HIGH_QUALITY, HIGH_QUALITY),
+					QualityMetrics(HIGH_QUALITY, HIGH_QUALITY, HIGH_QUALITY, HIGH_QUALITY, HIGH_QUALITY),
+					QualityMetrics(MEDIUM_QUALITY, MEDIUM_QUALITY, MEDIUM_QUALITY, MEDIUM_QUALITY, MEDIUM_QUALITY)
 				]
 				mock_quality.side_effect = qualities
 				
@@ -271,15 +273,14 @@ class TestOrientationWorkflow:
 					orientation_tolerance=15.0
 				)
 				
-				# Should keep the highest quality face (second one with 0.8)
+				# Should keep only the highest quality face
 				assert person['face_count'] == 1
 				
 				# Verify the kept face has the best quality
 				face_metadata = person.get('face_metadata')
 				for metadata in face_metadata.values():
 					if 'quality' in metadata:
-						# Should be the high quality one (0.8)
-						assert metadata['quality']['overall'] == pytest.approx(0.8, rel=0.01)
+						assert metadata['quality']['overall'] == pytest.approx(HIGH_QUALITY, rel=0.01)
 
 
 class TestBackwardCompatibility:
