@@ -3,6 +3,7 @@
 from typing import Dict, List, Optional, Tuple
 
 from facefusion_repository.manager import RepositoryManager
+from facefusion_repository.orientation import calculate_orientation_distance
 
 
 class RepositorySelector:
@@ -172,7 +173,7 @@ class RepositorySelector:
 		Args:
 			person_name: Person name
 			target_pose: Target pose as (pitch, yaw, roll) in degrees
-			orientation_tolerance: Maximum angular difference in degrees
+			orientation_tolerance: Maximum angular difference in degrees (DEPRECATED - not used)
 		
 		Returns:
 			Path to best matching face, or None if no suitable face found
@@ -210,6 +211,54 @@ class RepositorySelector:
 					if similarity > best_similarity:
 						best_similarity = similarity
 						best_face = face_path
+		
+		# Return best matching face or fallback to first face
+		return best_face if best_face else (face_paths[0] if face_paths else None)
+
+	def get_best_face_by_orientation(
+		self,
+		person_name: str,
+		target_orientation: Dict[str, float]
+	) -> Optional[str]:
+		"""
+		Get the best matching face based on orientation proximity to target orientation.
+		
+		This is the new orientation-based selection algorithm that replaces pose-based selection.
+		Uses weighted Euclidean distance for better matching.
+		
+		Args:
+			person_name: Person name (must be from a SINGLE person)
+			target_orientation: Target orientation {'pitch': float, 'yaw': float, 'roll': float}
+		
+		Returns:
+			Path to best matching face, or None if no faces found
+		"""
+		person = self.manager.get_person_by_name(person_name)
+		if not person:
+			return None
+		
+		face_paths = person['face_paths']
+		face_metadata = person.get('face_metadata')
+		
+		if not face_metadata:
+			# No orientation metadata, return first face
+			return face_paths[0] if face_paths else None
+		
+		# Find best matching orientation using weighted distance
+		best_face = None
+		best_distance = float('inf')
+		
+		for face_path in face_paths:
+			metadata = face_metadata.get(face_path)
+			if metadata and 'pose' in metadata:
+				repo_orientation = metadata['pose']
+				
+				# Calculate weighted distance
+				distance = calculate_orientation_distance(target_orientation, repo_orientation)
+				
+				if distance < best_distance:
+					best_distance = distance
+					best_face = face_path
 		
 		# Return best matching face or fallback to first face
 		return best_face if best_face else (face_paths[0] if face_paths else None)
