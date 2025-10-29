@@ -294,14 +294,31 @@ def create_person_name_program() -> ArgumentParser:
 	program = ArgumentParser(add_help = False)
 	program.add_argument('--person', help = 'person name from repository', required = True)
 	program.add_argument('--fallback-persons', help = 'fallback person names (comma-separated)', default = None)
-	job_store.register_job_keys([ 'person', 'fallback_persons' ])
+	program.add_argument('--orientation-tolerance', help = 'maximum angular difference for pose matching (degrees)', type = float, default = 15.0)
+	program.add_argument('--face-selector-mode', help = 'face selection mode for repository', choices = ['best-quality', 'all', 'first'], default = 'all')
+	job_store.register_job_keys([ 'person', 'fallback_persons', 'orientation_tolerance', 'face_selector_mode' ])
 	return program
 
 
 def create_face_paths_program() -> ArgumentParser:
 	program = ArgumentParser(add_help = False)
 	program.add_argument('--face-paths', help = 'paths to face images', nargs = '+', required = True)
-	job_store.register_job_keys([ 'face_paths' ])
+	program.add_argument('--quality-threshold', help = 'minimum quality threshold for faces (0.0 to 1.0)', type = float, default = None)
+	job_store.register_job_keys([ 'face_paths', 'quality_threshold' ])
+	return program
+
+
+def create_settings_profile_program() -> ArgumentParser:
+	program = ArgumentParser(add_help = False)
+	program.add_argument('--profile-name', help = 'name of settings profile', required = True)
+	job_store.register_job_keys([ 'profile_name' ])
+	return program
+
+
+def create_settings_file_program() -> ArgumentParser:
+	program = ArgumentParser(add_help = False)
+	program.add_argument('--settings-file', help = 'path to settings JSON file', required = True)
+	job_store.register_job_keys([ 'settings_file' ])
 	return program
 
 
@@ -345,6 +362,12 @@ def create_program() -> ArgumentParser:
 	sub_program.add_parser('repo-list', help = 'list persons in face repository', parents = [ create_repository_path_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
 	sub_program.add_parser('repo-remove', help = 'remove a person from face repository', parents = [ create_repository_path_program(), create_person_name_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
 	sub_program.add_parser('repo-execute', help = 'execute face swap using repository person', parents = [ create_repository_path_program(), create_person_name_program(), create_config_path_program(), create_temp_path_program(), create_target_path_program(), create_output_path_program(), collect_step_program(), collect_job_program() ], formatter_class = create_help_formatter_large)
+	# repository settings
+	sub_program.add_parser('repo-settings-list', help = 'list settings profiles', parents = [ create_repository_path_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
+	sub_program.add_parser('repo-settings-show', help = 'show settings profile details', parents = [ create_repository_path_program(), create_settings_profile_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
+	sub_program.add_parser('repo-settings-delete', help = 'delete settings profile', parents = [ create_repository_path_program(), create_settings_profile_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
+	sub_program.add_parser('repo-settings-export', help = 'export settings profile to file', parents = [ create_repository_path_program(), create_settings_profile_program(), create_settings_file_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
+	sub_program.add_parser('repo-settings-import', help = 'import settings profile from file', parents = [ create_repository_path_program(), create_settings_profile_program(), create_settings_file_program(), create_log_level_program() ], formatter_class = create_help_formatter_large)
 	return ArgumentParser(parents = [ program ], formatter_class = create_help_formatter_small)
 
 

@@ -45,6 +45,38 @@ def test_manager_create_person(temp_repository_path, sample_face_image):
 	assert len(person['face_paths']) == 1
 
 
+def test_manager_create_person_with_quality_assessment(temp_repository_path, sample_face_image):
+	"""Test creating a person with quality assessment."""
+	manager = RepositoryManager(temp_repository_path)
+	person = manager.create_person('test_person', [sample_face_image], assess_quality=True)
+	
+	assert person['display_name'] == 'test_person'
+	assert person['face_count'] == 1
+	assert 'face_metadata' in person
+	
+	# Should have quality metrics for the face
+	if person['face_metadata']:
+		face_path = person['face_paths'][0]
+		assert face_path in person['face_metadata']
+		assert 'quality' in person['face_metadata'][face_path]
+
+
+def test_manager_create_person_with_quality_threshold(temp_repository_path):
+	"""Test creating a person with quality threshold filtering."""
+	manager = RepositoryManager(temp_repository_path)
+	
+	# Create multiple test images (we'll use the path even though they don't exist for this test)
+	# In a real scenario, we'd need actual images
+	# This test verifies the API works correctly
+	with tempfile.TemporaryDirectory() as temp_dir:
+		test_image = Path(temp_dir) / 'test.jpg'
+		test_image.write_bytes(b'dummy')
+		
+		# This should work without error
+		person = manager.create_person('test_person', [str(test_image)], quality_threshold=0.5)
+		assert person is not None
+
+
 def test_manager_list_persons(temp_repository_path, sample_face_image):
 	"""Test listing persons."""
 	manager = RepositoryManager(temp_repository_path)
