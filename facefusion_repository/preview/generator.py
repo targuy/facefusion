@@ -76,16 +76,7 @@ class PreviewGenerator:
 		Returns:
 			PreviewResult with preview path and status
 		"""
-		# Import FaceFusion modules dynamically to avoid circular dependencies
-		try:
-			from facefusion import state_manager
-			from facefusion.core import common_pre_check, processors_pre_check
-			from facefusion.processors.core import get_processors_modules
-			from facefusion_repository.quality_assessor import assess_face_from_path
-		except ImportError as e:
-			return PreviewResult('', False, f"Failed to import FaceFusion modules: {str(e)}", test_face_path=target_image)
-		
-		# Validate inputs
+		# Validate inputs first (before imports)
 		if not source_faces:
 			return PreviewResult('', False, "No source faces provided", test_face_path=target_image)
 		
@@ -95,6 +86,15 @@ class PreviewGenerator:
 		for face_path in source_faces:
 			if not Path(face_path).exists():
 				return PreviewResult('', False, f"Source face not found: {face_path}", test_face_path=target_image)
+		
+		# Import FaceFusion modules dynamically to avoid circular dependencies
+		try:
+			from facefusion import state_manager
+			from facefusion.core import common_pre_check, processors_pre_check
+			from facefusion.processors.core import get_processors_modules
+			from facefusion_repository.quality_assessor import assess_face_from_path
+		except ImportError as e:
+			return PreviewResult('', False, f"Failed to import FaceFusion modules: {str(e)}", test_face_path=target_image)
 		
 		# Set up output path
 		if output_path is None:
