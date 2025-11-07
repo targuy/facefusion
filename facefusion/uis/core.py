@@ -72,6 +72,14 @@ def init() -> None:
 	os.environ['GRADIO_ANALYTICS_ENABLED'] = '0'
 	os.environ['GRADIO_TEMP_DIR'] = os.path.join(state_manager.get_item('temp_path'), 'gradio')
 
+	# Initialize repository state variables
+	if not state_manager.get_item('repository_path'):
+		state_manager.init_item('repository_path', '.face_repository')
+	state_manager.init_item('repository_mode', False)
+	state_manager.init_item('repository_person_id', '')
+	state_manager.init_item('repository_person_name', '')
+	state_manager.init_item('repository_source_faces', [])
+
 	warnings.filterwarnings('ignore', category = UserWarning, module = 'gradio')
 	gradio.processing_utils._check_allowed = uis_overrides.check_allowed #type:ignore
 	gradio.processing_utils.convert_video_to_playable_mp4 = uis_overrides.convert_video_to_playable_mp4

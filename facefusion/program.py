@@ -295,8 +295,8 @@ def create_person_name_program() -> ArgumentParser:
 	program.add_argument('--person', help = 'person name from repository', required = True)
 	program.add_argument('--fallback-persons', help = 'fallback person names (comma-separated)', default = None)
 	program.add_argument('--orientation-tolerance', help = 'maximum angular difference for pose matching (degrees)', type = float, default = 15.0)
-	program.add_argument('--face-selector-mode', help = 'face selection mode for repository', choices = ['best-quality', 'all', 'first'], default = 'all')
-	job_store.register_job_keys([ 'person', 'fallback_persons', 'orientation_tolerance', 'face_selector_mode' ])
+	program.add_argument('--repo-face-selector-mode', help = 'face selection mode for repository', choices = ['best-quality', 'all', 'first'], default = 'all')
+	job_store.register_job_keys([ 'person', 'fallback_persons', 'orientation_tolerance', 'repo_face_selector_mode' ])
 	return program
 
 
@@ -304,7 +304,10 @@ def create_face_paths_program() -> ArgumentParser:
 	program = ArgumentParser(add_help = False)
 	program.add_argument('--face-paths', help = 'paths to face images', nargs = '+', required = True)
 	program.add_argument('--quality-threshold', help = 'minimum quality threshold for faces (0.0 to 1.0)', type = float, default = None)
-	job_store.register_job_keys([ 'face_paths', 'quality_threshold' ])
+	program.add_argument('--preview-on-test-faces', help = 'generate preview on test faces before adding', action = 'store_true')
+	program.add_argument('--test-faces-dir', help = 'directory containing test faces for preview', default = None)
+	program.add_argument('--interactive', help = 'interactive mode for preview and conflict resolution', action = 'store_true')
+	job_store.register_job_keys([ 'face_paths', 'quality_threshold', 'preview_on_test_faces', 'test_faces_dir', 'interactive' ])
 	return program
 
 

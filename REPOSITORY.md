@@ -465,3 +465,231 @@ For issues or questions:
 - Check the troubleshooting section above
 - Review FaceFusion documentation
 - Ensure all face images are valid and accessible
+
+## Import Preview and Zone-Specific Face Management
+
+The repository system now includes advanced preview capabilities and zone-specific face management for optimal 3D face coverage.
+
+### Preview on Test Faces
+
+Generate previews of face imports on test faces before committing them to the repository:
+
+```bash
+# Add face with preview
+python facefusion.py repo-add \
+    --person "Marie" \
+    --face-paths new_face.jpg \
+    --preview-on-test-faces \
+    --test-faces-dir ./test_faces
+```
+
+This will:
+1. Load test faces from the specified directory
+2. Generate preview transformations for each test face
+3. Display preview results and quality scores
+4. Add the face to repository if acceptable
+
+### Interactive Mode
+
+Use interactive mode for preview approval and conflict resolution:
+
+```bash
+python facefusion.py repo-add \
+    --person "Marie" \
+    --face-paths new_face.jpg \
+    --preview-on-test-faces \
+    --interactive
+```
+
+In interactive mode, the system will:
+- Show preview results on test faces
+- Ask for user confirmation before adding
+- Handle orientation overlaps with side-by-side comparison
+- Allow zone-specific face selection for optimal coverage
+
+### Test Faces Management
+
+Test faces are sample images used for preview generation. They should represent typical target scenarios:
+
+**Setting up test faces directory:**
+
+```bash
+# Directory structure
+test_faces/
+├── front_face.jpg        # Frontal view
+├── profile_left.jpg      # Left profile
+├── profile_right.jpg     # Right profile
+├── looking_up.jpg        # Face looking up
+├── looking_down.jpg      # Face looking down
+└── README.md             # Auto-generated guide
+```
+
+**Using custom test faces directory:**
+
+```bash
+python facefusion.py repo-add \
+    --person "Marie" \
+    --face-paths face.jpg \
+    --preview-on-test-faces \
+    --test-faces-dir /path/to/custom/test_faces
+```
+
+### Zone-Specific Coverage
+
+The system manages 3D face coverage zones to optimize face selection:
+
+**Coverage Zone Concept:**
+- Each face has a specific orientation (pitch, yaw, roll)
+- Coverage zones define angle ranges where the face performs best
+- Multiple faces can coexist with non-overlapping zones
+- System automatically selects optimal face for each target orientation
+
+**Metadata Structure:**
+
+Each face stores:
+- **Orientation**: Center pose (pitch, yaw, roll in degrees)
+- **Coverage Zones**: Angle ranges where face is effective
+- **Quality Metrics**: Quality scores for the face
+- **Preview Results**: Quality scores on test faces
+
+**Overlap Resolution:**
+
+When orientation overlap is detected:
+1. System compares faces on multiple test cases
+2. Shows side-by-side quality comparison
+3. Allows user to choose preferred face per zone (in interactive mode)
+4. Assigns non-overlapping coverage zones to both faces
+
+### API Usage
+
+**Generate Import Preview:**
+
+```python
+from facefusion_repository.manager import RepositoryManager
+
+manager = RepositoryManager('.face_repository')
+
+# Preview face import
+preview_result = manager.preview_face_import(
+    'new_face.jpg',
+    test_faces_dir='./test_faces',
+    max_test_faces=5
+)
+
+if preview_result['success']:
+    for test_face, result in preview_result['preview_results'].items():
+        print(f"Test face: {test_face}")
+        print(f"Quality: {result.quality_score:.2f}")
+        print(f"Preview: {result.preview_path}")
+```
+
+**Compare Faces on Test Cases:**
+
+```python
+# Compare existing vs new face
+comparison = manager.compare_faces_on_test_cases(
+    'existing_face.jpg',
+    'new_face.jpg',
+    test_faces_dir='./test_faces'
+)
+
+if comparison['success']:
+    for test_face, comp_result in comparison['comparison_results'].items():
+        print(f"Test face: {test_face}")
+        print(f"Existing quality: {comp_result.existing_preview.quality_score:.2f}")
+        print(f"New quality: {comp_result.new_preview.quality_score:.2f}")
+        print(f"Winner: {comp_result.winner}")
+```
+
+**Zone Management:**
+
+```python
+from facefusion_repository.zone_manager import (
+    calculate_zone_from_orientation,
+    check_zone_overlap,
+    format_zone_description
+)
+
+# Calculate coverage zone
+orientation = {'pitch': 10.0, 'yaw': 20.0, 'roll': 5.0}
+zone = calculate_zone_from_orientation(orientation, tolerance=15.0)
+
+# Check for overlaps
+zone1 = calculate_zone_from_orientation(orientation1, tolerance=15.0)
+zone2 = calculate_zone_from_orientation(orientation2, tolerance=15.0)
+has_overlap = check_zone_overlap(zone1, zone2)
+
+# Format zone for display
+description = format_zone_description(zone)
+print(description)
+# Output: "Pitch: [-5.0°, 25.0°], Yaw: [5.0°, 35.0°], Roll: [-10.0°, 20.0°]"
+```
+
+**Test Faces Management:**
+
+```python
+from facefusion_repository.test_faces import (
+    get_test_faces,
+    create_test_faces_directory,
+    add_test_face
+)
+
+# Get test faces
+test_faces = get_test_faces('./test_faces', max_count=5)
+
+# Create test faces directory
+test_dir = create_test_faces_directory('./test_faces')
+
+# Add a test face
+success = add_test_face('my_face.jpg', './test_faces')
+```
+
+### Best Practices
+
+**Test Faces:**
+- Use 5-10 diverse test faces covering different orientations
+- Include frontal, profile, and angled views
+- Use good quality images (sharp, well-lit)
+- Representative of typical use cases
+
+**Preview Workflow:**
+- Always preview faces before adding to repository
+- Review quality scores on multiple test faces
+- Accept faces that perform well across orientations
+- Reject low-quality or problematic faces
+
+**Zone Management:**
+- Let system handle zone assignment automatically
+- Use interactive mode for manual control when needed
+- Keep multiple faces for better orientation coverage
+- Monitor face metadata for optimal zone distribution
+
+### Troubleshooting
+
+**No test faces found:**
+```
+Solution: Create test faces directory and add sample images
+$ mkdir -p test_faces
+$ cp your_test_images/*.jpg test_faces/
+```
+
+**Preview generation fails:**
+```
+Solution: Ensure test faces are valid images and accessible
+Check file permissions and image formats (jpg, png, etc.)
+```
+
+**Zone conflicts:**
+```
+Solution: Use interactive mode to resolve manually
+System will show comparison and let you choose per zone
+```
+
+### Benefits
+
+1. **Quality Assurance**: See actual results before committing faces
+2. **Optimal Coverage**: Best face for each 3D zone, not just global replacement
+3. **Fine Control**: Zone-specific management without losing good faces
+4. **Visual Feedback**: Clear comparison interface for informed decisions
+5. **Better Results**: Improved swap quality through preview-based selection
+

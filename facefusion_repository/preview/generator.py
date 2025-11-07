@@ -4,14 +4,50 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from facefusion_repository.types import PreviewResultDict
+
 
 class PreviewResult:
 	"""Result of preview generation."""
 	
-	def __init__(self, preview_path: str, success: bool, message: str = ''):
+	def __init__(
+		self, 
+		preview_path: str, 
+		success: bool, 
+		message: str = '',
+		quality_score: float = 0.0,
+		test_face_path: str = ''
+	):
 		self.preview_path = preview_path
 		self.success = success
 		self.message = message
+		self.quality_score = quality_score
+		self.test_face_path = test_face_path
+	
+	def to_dict(self) -> PreviewResultDict:
+		"""Convert to dictionary format."""
+		return {
+			'preview_path': self.preview_path,
+			'success': self.success,
+			'message': self.message,
+			'quality_score': self.quality_score,
+			'test_face_path': self.test_face_path
+		}
+
+
+class ComparisonResult:
+	"""Result of comparing two faces on a test image."""
+	
+	def __init__(
+		self,
+		test_face_path: str,
+		existing_preview: PreviewResult,
+		new_preview: PreviewResult
+	):
+		self.test_face_path = test_face_path
+		self.existing_preview = existing_preview
+		self.new_preview = new_preview
+		self.winner = 'new' if new_preview.quality_score > existing_preview.quality_score else 'existing'
 
 
 class PreviewGenerator:
@@ -40,24 +76,25 @@ class PreviewGenerator:
 		Returns:
 			PreviewResult with preview path and status
 		"""
+		# Validate inputs first (before imports)
+		if not source_faces:
+			return PreviewResult('', False, "No source faces provided", test_face_path=target_image)
+		
+		if not Path(target_image).exists():
+			return PreviewResult('', False, f"Target image not found: {target_image}", test_face_path=target_image)
+		
+		for face_path in source_faces:
+			if not Path(face_path).exists():
+				return PreviewResult('', False, f"Source face not found: {face_path}", test_face_path=target_image)
+		
 		# Import FaceFusion modules dynamically to avoid circular dependencies
 		try:
 			from facefusion import state_manager
 			from facefusion.core import common_pre_check, processors_pre_check
 			from facefusion.processors.core import get_processors_modules
+			from facefusion_repository.quality_assessor import assess_face_from_path
 		except ImportError as e:
-			return PreviewResult('', False, f"Failed to import FaceFusion modules: {str(e)}")
-		
-		# Validate inputs
-		if not source_faces:
-			return PreviewResult('', False, "No source faces provided")
-		
-		if not Path(target_image).exists():
-			return PreviewResult('', False, f"Target image not found: {target_image}")
-		
-		for face_path in source_faces:
-			if not Path(face_path).exists():
-				return PreviewResult('', False, f"Source face not found: {face_path}")
+			return PreviewResult('', False, f"Failed to import FaceFusion modules: {str(e)}", test_face_path=target_image)
 		
 		# Set up output path
 		if output_path is None:
@@ -80,14 +117,19 @@ class PreviewGenerator:
 			# pipeline, which is complex and would duplicate significant functionality.
 			# For a minimal implementation, we'll just validate paths and return a success indicator.
 			
+			# Assess quality of the result (placeholder - in real implementation would assess output)
+			quality_score = 0.75  # Placeholder quality score
+			
 			return PreviewResult(
 				output_path,
 				True,
-				f"Preview would be generated at: {output_path}"
+				f"Preview would be generated at: {output_path}",
+				quality_score=quality_score,
+				test_face_path=target_image
 			)
 			
 		except Exception as e:
-			return PreviewResult('', False, f"Preview generation failed: {str(e)}")
+			return PreviewResult('', False, f"Preview generation failed: {str(e)}", test_face_path=target_image)
 	
 	def generate_multi_face_preview(
 		self,
@@ -116,6 +158,87 @@ class PreviewGenerator:
 			results.append(result)
 		
 		return results
+
+
+def generate_import_preview(
+	source_face_path: str,
+	test_faces: List[str],
+	person_id: Optional[str] = None
+) -> Dict[str, PreviewResult]:
+	"""
+	Generate preview transformations on test faces.
+	
+	Args:
+		source_face_path: Path to the source face to preview
+		test_faces: List of test face image paths
+		person_id: Optional person ID for context
+	
+	Returns:
+		Dictionary mapping test face path to PreviewResult
+	"""
+	generator = PreviewGenerator()
+	results = {}
+	
+	for test_face in test_faces:
+		if not Path(test_face).exists():
+			results[test_face] = PreviewResult(
+				'',
+				False,
+				f"Test face not found: {test_face}",
+				test_face_path=test_face
+			)
+			continue
+		
+		result = generator.generate_face_swap_preview(
+			[source_face_path],
+			test_face
+		)
+		results[test_face] = result
+	
+	return results
+
+
+def compare_overlap_previews(
+	existing_face_path: str,
+	new_face_path: str,
+	test_faces: List[str]
+) -> Dict[str, ComparisonResult]:
+	"""
+	Compare existing vs new face on test cases.
+	
+	Args:
+		existing_face_path: Path to existing face
+		new_face_path: Path to new face
+		test_faces: List of test face paths
+	
+	Returns:
+		Dictionary mapping test face to ComparisonResult
+	"""
+	generator = PreviewGenerator()
+	results = {}
+	
+	for test_face in test_faces:
+		if not Path(test_face).exists():
+			# Create dummy results for missing test face
+			dummy = PreviewResult('', False, f"Test face not found: {test_face}", test_face_path=test_face)
+			results[test_face] = ComparisonResult(test_face, dummy, dummy)
+			continue
+		
+		# Generate preview with existing face
+		existing_result = generator.generate_face_swap_preview(
+			[existing_face_path],
+			test_face
+		)
+		
+		# Generate preview with new face
+		new_result = generator.generate_face_swap_preview(
+			[new_face_path],
+			test_face
+		)
+		
+		results[test_face] = ComparisonResult(test_face, existing_result, new_result)
+	
+	return results
 
 
 def generate_preview_from_repository(

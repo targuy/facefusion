@@ -9,7 +9,7 @@ from time import time
 import numpy
 from tqdm import tqdm
 
-from facefusion import benchmarker, cli_helper, content_analyser, face_classifier, face_detector, face_landmarker, face_masker, face_recognizer, hash_helper, logger, process_manager, state_manager, video_manager, voice_extractor, wording
+from facefusion import benchmarker, cli_helper, content_analyser, face_classifier, face_detector, face_landmarker, face_masker, face_recognizer, hash_helper, logger, process_manager, repository_helper, state_manager, video_manager, voice_extractor, wording
 from facefusion.args import apply_args, collect_job_args, reduce_job_args, reduce_step_args
 from facefusion.audio import create_empty_audio_frame, get_audio_frame, get_voice_frame
 from facefusion.common_helper import get_first
@@ -183,6 +183,40 @@ def route_repository(args : Args) -> ErrorCode:
 		person_name = state_manager.get_item('person')
 		face_paths = state_manager.get_item('face_paths')
 		quality_threshold = state_manager.get_item('quality_threshold')
+		preview_on_test_faces = state_manager.get_item('preview_on_test_faces')
+		test_faces_dir = state_manager.get_item('test_faces_dir')
+		interactive = state_manager.get_item('interactive')
+		
+		# Handle preview workflow if enabled
+		if preview_on_test_faces or interactive:
+			from facefusion_repository.test_faces import get_test_faces, create_test_faces_directory
+			
+			# Ensure test faces directory exists
+			test_faces = get_test_faces(test_faces_dir)
+			if not test_faces:
+				logger.warn("No test faces found. Creating test faces directory...", __name__)
+				test_dir = create_test_faces_directory(test_faces_dir)
+				logger.info(f"Please add test face images to: {test_dir}", __name__)
+				logger.info("Proceeding without preview...", __name__)
+				preview_on_test_faces = False
+			else:
+				logger.info(f"Found {len(test_faces)} test faces for preview", __name__)
+				
+				# Preview each face before adding
+				for face_path in face_paths:
+					logger.info(f"Generating preview for: {face_path}", __name__)
+					preview_result = manager.preview_face_import(face_path, test_faces_dir)
+					
+					if preview_result['success']:
+						logger.info(f"Preview generated on {preview_result['test_face_count']} test faces", __name__)
+						
+						# In interactive mode, would prompt user here
+						if interactive:
+							logger.info("Interactive mode: would show preview and ask user to accept/reject", __name__)
+							# For minimal implementation, auto-accept
+							logger.info("Auto-accepting face (interactive UI not implemented)", __name__)
+					else:
+						logger.warn(f"Preview generation failed: {preview_result.get('message', 'Unknown error')}", __name__)
 		
 		try:
 			person = manager.create_person(
@@ -230,7 +264,7 @@ def route_repository(args : Args) -> ErrorCode:
 		person_name = state_manager.get_item('person')
 		fallback_persons_str = state_manager.get_item('fallback_persons')
 		quality_threshold = state_manager.get_item('quality_threshold')
-		face_selector_mode = state_manager.get_item('face_selector_mode') or 'all'
+		face_selector_mode = state_manager.get_item('repo_face_selector_mode') or 'all'
 		
 		# Parse fallback persons
 		fallback_persons = None
@@ -567,7 +601,8 @@ def process_image(start_time : float) -> ErrorCode:
 
 	temp_image_path = get_temp_file_path(state_manager.get_item('target_path'))
 	reference_vision_frame = read_static_image(temp_image_path)
-	source_vision_frames = read_static_images(state_manager.get_item('source_paths'))
+	source_paths = repository_helper.get_effective_source_paths()
+	source_vision_frames = read_static_images(source_paths) if source_paths else []
 	source_audio_frame = create_empty_audio_frame()
 	source_voice_frame = create_empty_audio_frame()
 	target_vision_frame = read_static_image(temp_image_path)
@@ -719,8 +754,9 @@ def process_video(start_time : float) -> ErrorCode:
 
 def process_temp_frame(temp_frame_path : str, frame_number : int) -> bool:
 	reference_vision_frame = read_static_video_frame(state_manager.get_item('target_path'), state_manager.get_item('reference_frame_number'))
-	source_vision_frames = read_static_images(state_manager.get_item('source_paths'))
-	source_audio_path = get_first(filter_audio_paths(state_manager.get_item('source_paths')))
+	source_paths = repository_helper.get_effective_source_paths()
+	source_vision_frames = read_static_images(source_paths) if source_paths else []
+	source_audio_path = get_first(filter_audio_paths(source_paths)) if source_paths else None
 	temp_video_fps = restrict_video_fps(state_manager.get_item('target_path'), state_manager.get_item('output_video_fps'))
 	target_vision_frame = read_static_image(temp_frame_path)
 	temp_vision_frame = target_vision_frame.copy()

@@ -54,8 +54,14 @@ def update(files : List[File]) -> Tuple[gradio.Audio, gradio.Image]:
 	if has_source_audio or has_source_image:
 		source_audio_path = get_first(filter_audio_paths(file_names))
 		source_image_path = get_first(filter_image_paths(file_names))
+		
+		# IMPORTANT: Disable repository mode when using direct upload
+		# This provides clear UI feedback that direct upload is active
+		# Note: Direct upload ALWAYS has priority in get_effective_source_paths()
+		# even if repository_mode was not disabled, but disabling it clarifies UI state
+		state_manager.set_item('repository_mode', False)
 		state_manager.set_item('source_paths', file_names)
 		return gradio.Audio(value = source_audio_path, visible = has_source_audio), gradio.Image(value = source_image_path, visible = has_source_image)
 
-	state_manager.clear_item('source_paths')
+	state_manager.set_item('source_paths', [])
 	return gradio.Audio(value = None, visible = False), gradio.Image(value = None, visible = False)
