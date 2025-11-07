@@ -5,7 +5,7 @@ import cv2
 import gradio
 import numpy
 
-from facefusion import logger, process_manager, state_manager, wording
+from facefusion import logger, process_manager, repository_helper, state_manager, wording
 from facefusion.audio import create_empty_audio_frame, get_voice_frame
 from facefusion.common_helper import get_first
 from facefusion.content_analyser import analyse_frame
@@ -31,8 +31,9 @@ def render() -> None:
 		'label': wording.get('uis.preview_image')
 	}
 
-	source_vision_frames = read_static_images(state_manager.get_item('source_paths'))
-	source_audio_path = get_first(filter_audio_paths(state_manager.get_item('source_paths')))
+	source_paths = repository_helper.get_effective_source_paths()
+	source_vision_frames = read_static_images(source_paths) if source_paths else []
+	source_audio_path = get_first(filter_audio_paths(source_paths)) if source_paths else None
 	source_audio_frame = create_empty_audio_frame()
 	source_voice_frame = create_empty_audio_frame()
 
@@ -174,8 +175,9 @@ def update_preview_image(preview_mode : PreviewMode, preview_resolution : str, f
 	while process_manager.is_checking():
 		sleep(0.5)
 
-	source_vision_frames = read_static_images(state_manager.get_item('source_paths'))
-	source_audio_path = get_first(filter_audio_paths(state_manager.get_item('source_paths')))
+	source_paths = repository_helper.get_effective_source_paths()
+	source_vision_frames = read_static_images(source_paths) if source_paths else []
+	source_audio_path = get_first(filter_audio_paths(source_paths)) if source_paths else None
 	source_audio_frame = create_empty_audio_frame()
 	source_voice_frame = create_empty_audio_frame()
 

@@ -3,7 +3,7 @@
 import shutil
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from facefusion import logger
 from facefusion_repository.orientation import check_orientation_overlap, extract_orientation_from_image_path
@@ -20,6 +20,36 @@ class RepositoryManager:
 		if repository_path is None:
 			repository_path = '.face_repository'
 		self.storage = Storage(repository_path)
+
+	@staticmethod
+	def _normalize_name(name: str) -> str:
+		"""
+		Normalize a person name for uniqueness checking.
+		
+		Args:
+			name: Display name to normalize
+		
+		Returns:
+			Normalized name (lowercase, stripped)
+		"""
+		return name.strip().lower()
+
+	def get_person_by_normalized_name(self, display_name: str) -> Optional[PersonEntry]:
+		"""
+		Get a person by normalized display name (case-insensitive).
+		
+		Args:
+			display_name: Display name to search for
+		
+		Returns:
+			PersonEntry if found, None otherwise
+		"""
+		normalized = self._normalize_name(display_name)
+		persons = self.storage.get_all_persons()
+		for person in persons.values():
+			if person.get('normalized_name', self._normalize_name(person['display_name'])) == normalized:
+				return person
+		return None
 
 	def create_person(
 		self,
@@ -43,7 +73,19 @@ class RepositoryManager:
 		
 		Returns:
 			PersonEntry for the created person
+		
+		Raises:
+			ValueError: If a person with the same name (case-insensitive) already exists
 		"""
+		# Check for duplicate name
+		normalized_name = self._normalize_name(display_name)
+		existing_person = self.get_person_by_normalized_name(display_name)
+		if existing_person:
+			raise ValueError(
+				f"Person with name '{display_name}' already exists (ID: {existing_person['person_id']}). "
+				f"Use add_faces_to_person() to add more faces or choose a different name."
+			)
+		
 		person_id = str(uuid.uuid4())
 		
 		# Copy face images to repository
@@ -152,6 +194,7 @@ class RepositoryManager:
 		person: PersonEntry = {
 			'person_id': person_id,
 			'display_name': display_name,
+			'normalized_name': normalized_name,
 			'face_paths': stored_face_paths,
 			'face_count': len(stored_face_paths),
 			'metadata': {},
@@ -160,6 +203,70 @@ class RepositoryManager:
 		
 		self.storage.add_person(person)
 		return person
+
+	def create_or_update_person(
+		self,
+		display_name: str,
+		face_paths: List[str],
+		quality_threshold: Optional[float] = None,
+		assess_quality: bool = True,
+		extract_orientation: bool = True,
+		orientation_tolerance: float = 15.0
+	) -> PersonEntry:
+		"""
+		Create a new person or add faces to existing person.
+		
+		This is the recommended method for adding faces to the repository.
+		It automatically detects if a person with the given name exists
+		and either creates a new entry or adds faces to the existing one.
+		
+		Args:
+			display_name: Display name for the person
+			face_paths: Paths to face images
+			quality_threshold: Optional minimum quality threshold (0.0 to 1.0)
+			assess_quality: Whether to assess face quality (default: True)
+			extract_orientation: Whether to extract face orientation (default: True)
+			orientation_tolerance: Tolerance for detecting orientation overlaps in degrees (default: 15.0)
+		
+		Returns:
+			PersonEntry for the created or updated person
+		"""
+		# Check if person already exists (case-insensitive)
+		existing_person = self.get_person_by_normalized_name(display_name)
+		
+		if existing_person:
+			# Person exists → add faces
+			logger.info(
+				f"Person '{display_name}' already exists (ID: {existing_person['person_id']}), adding faces...",
+				__name__.upper()
+			)
+			success = self.add_faces_to_person(
+				existing_person['person_id'],
+				face_paths,
+				quality_threshold=quality_threshold,
+				assess_quality=assess_quality,
+				extract_orientation=extract_orientation,
+				orientation_tolerance=orientation_tolerance
+			)
+			if success:
+				# Return updated person
+				return self.get_person(existing_person['person_id'])
+			else:
+				raise RuntimeError(f"Failed to add faces to person '{display_name}'")
+		else:
+			# Person doesn't exist → create new
+			logger.info(
+				f"Creating new person '{display_name}'...",
+				__name__.upper()
+			)
+			return self.create_person(
+				display_name,
+				face_paths,
+				quality_threshold=quality_threshold,
+				assess_quality=assess_quality,
+				extract_orientation=extract_orientation,
+				orientation_tolerance=orientation_tolerance
+			)
 
 	def get_person(self, person_id: str) -> Optional[PersonEntry]:
 		"""Get a person by ID."""
@@ -189,6 +296,47 @@ class RepositoryManager:
 			
 			# Remove from storage
 			return self.storage.remove_person(person_id)
+		return False
+
+	def remove_face_from_person(self, person_id: str, face_path: str) -> bool:
+		"""
+		Remove a specific face from a person's repository.
+		
+		Args:
+			person_id: ID of the person
+			face_path: Path to the face image to remove
+		
+		Returns:
+			True if face was removed successfully, False otherwise
+		"""
+		person = self.storage.get_person(person_id)
+		if not person:
+			return False
+		
+		# Remove face from person's face_paths list
+		if face_path in person['face_paths']:
+			person['face_paths'].remove(face_path)
+			person['face_count'] = len(person['face_paths'])
+			
+			# Update storage
+			self.storage.update_person(person_id, person)
+			
+			# Remove physical file
+			import os
+			if os.path.exists(face_path):
+				os.remove(face_path)
+			
+			# Remove face metadata if present
+			if 'face_metadata' in person and face_path in person['face_metadata']:
+				del person['face_metadata'][face_path]
+				self.storage.update_person(person_id, person)
+			
+			logger.info(
+				f"Removed face from person '{person['display_name']}': {face_path}",
+				__name__.upper()
+			)
+			return True
+		
 		return False
 
 	def add_faces_to_person(
@@ -369,6 +517,121 @@ class RepositoryManager:
 			'preview_results': preview_results
 		}
 	
+	def calculate_coverage_stats(self, person_id: str) -> Dict[str, Any]:
+		"""
+		Calculate coverage statistics for a person's faces.
+		
+		Analyzes the 3D orientation coverage of all faces in the repository
+		to determine how well different angles are represented.
+		
+		Args:
+			person_id: ID of the person
+		
+		Returns:
+			Dictionary with coverage statistics:
+			- total_faces: Total number of faces
+			- unique_zones: Number of unique coverage zones
+			- coverage_percentage: Estimated coverage percentage (0-100)
+			- zone_distribution: Distribution of faces across zones
+			- missing_zones: List of underrepresented zones
+		"""
+		person = self.storage.get_person(person_id)
+		if not person:
+			return {
+				'success': False,
+				'message': f'Person not found: {person_id}'
+			}
+		
+		total_faces = person['face_count']
+		if total_faces == 0:
+			return {
+				'success': True,
+				'total_faces': 0,
+				'unique_zones': 0,
+				'coverage_percentage': 0.0,
+				'zone_distribution': {},
+				'missing_zones': []
+			}
+		
+		# Extract orientations from face metadata
+		face_metadata = person.get('face_metadata', {})
+		orientations = []
+		
+		for face_path, metadata in face_metadata.items():
+			pose = metadata.get('pose')
+			if pose:
+				orientations.append(pose)
+		
+		if not orientations:
+			# No orientation data available
+			return {
+				'success': True,
+				'total_faces': total_faces,
+				'unique_zones': 0,
+				'coverage_percentage': 0.0,
+				'zone_distribution': {},
+				'missing_zones': [],
+				'warning': 'No orientation data available'
+			}
+		
+		# Calculate zones from orientations
+		zones = []
+		zone_tolerance = 15.0  # degrees
+		
+		for orientation in orientations:
+			zone = calculate_zone_from_orientation(orientation, zone_tolerance)
+			zones.append(zone)
+		
+		# Group zones by approximate center (quantized to 30° grid)
+		zone_grid = {}
+		grid_size = 30.0  # degrees
+		
+		for zone in zones:
+			# Get zone center
+			pitch_range = zone.get('pitch_range', (0.0, 0.0))
+			yaw_range = zone.get('yaw_range', (0.0, 0.0))
+			
+			pitch_center = (pitch_range[0] + pitch_range[1]) / 2
+			yaw_center = (yaw_range[0] + yaw_range[1]) / 2
+			
+			# Quantize to grid
+			pitch_bin = int(pitch_center / grid_size) * grid_size
+			yaw_bin = int(yaw_center / grid_size) * grid_size
+			
+			grid_key = (pitch_bin, yaw_bin)
+			zone_grid[grid_key] = zone_grid.get(grid_key, 0) + 1
+		
+		unique_zones = len(zone_grid)
+		
+		# Calculate coverage percentage
+		# Ideal coverage: 8 yaw angles × 4 pitch angles = 32 zones
+		# Yaw: [-180, -120, -60, 0, 60, 120, 180] (7 bins, but -180=180 → 6)
+		# Pitch: [-30, 0, 30, 60] (4 bins)
+		ideal_zones = 24  # 6 yaw × 4 pitch
+		coverage_percentage = min(100.0, (unique_zones / ideal_zones) * 100.0)
+		
+		# Find missing zones (underrepresented areas)
+		missing_zones = []
+		for pitch in [-30, 0, 30]:
+			for yaw in [-120, -60, 0, 60, 120]:
+				grid_key = (pitch, yaw)
+				if grid_key not in zone_grid:
+					missing_zones.append({
+						'pitch': pitch,
+						'yaw': yaw,
+						'description': f"Pitch {pitch}°, Yaw {yaw}°"
+					})
+		
+		return {
+			'success': True,
+			'total_faces': total_faces,
+			'unique_zones': unique_zones,
+			'coverage_percentage': round(coverage_percentage, 1),
+			'zone_distribution': zone_grid,
+			'missing_zones': missing_zones[:5],  # Top 5 missing zones
+			'ideal_zones': ideal_zones
+		}
+
 	def compare_faces_on_test_cases(
 		self,
 		existing_face_path: str,

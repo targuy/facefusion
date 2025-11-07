@@ -47,6 +47,7 @@ class PersonEntry(TypedDict):
 	"""Person entry in the repository."""
 	person_id: str
 	display_name: str
+	normalized_name: str  # Lowercase, stripped version for uniqueness check
 	face_paths: List[str]
 	face_count: int
 	metadata: Dict[str, Any]

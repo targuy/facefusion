@@ -9,7 +9,7 @@ from time import time
 import numpy
 from tqdm import tqdm
 
-from facefusion import benchmarker, cli_helper, content_analyser, face_classifier, face_detector, face_landmarker, face_masker, face_recognizer, hash_helper, logger, process_manager, state_manager, video_manager, voice_extractor, wording
+from facefusion import benchmarker, cli_helper, content_analyser, face_classifier, face_detector, face_landmarker, face_masker, face_recognizer, hash_helper, logger, process_manager, repository_helper, state_manager, video_manager, voice_extractor, wording
 from facefusion.args import apply_args, collect_job_args, reduce_job_args, reduce_step_args
 from facefusion.audio import create_empty_audio_frame, get_audio_frame, get_voice_frame
 from facefusion.common_helper import get_first
@@ -264,7 +264,7 @@ def route_repository(args : Args) -> ErrorCode:
 		person_name = state_manager.get_item('person')
 		fallback_persons_str = state_manager.get_item('fallback_persons')
 		quality_threshold = state_manager.get_item('quality_threshold')
-		face_selector_mode = state_manager.get_item('face_selector_mode') or 'all'
+		face_selector_mode = state_manager.get_item('repo_face_selector_mode') or 'all'
 		
 		# Parse fallback persons
 		fallback_persons = None
@@ -601,7 +601,8 @@ def process_image(start_time : float) -> ErrorCode:
 
 	temp_image_path = get_temp_file_path(state_manager.get_item('target_path'))
 	reference_vision_frame = read_static_image(temp_image_path)
-	source_vision_frames = read_static_images(state_manager.get_item('source_paths'))
+	source_paths = repository_helper.get_effective_source_paths()
+	source_vision_frames = read_static_images(source_paths) if source_paths else []
 	source_audio_frame = create_empty_audio_frame()
 	source_voice_frame = create_empty_audio_frame()
 	target_vision_frame = read_static_image(temp_image_path)
@@ -753,8 +754,9 @@ def process_video(start_time : float) -> ErrorCode:
 
 def process_temp_frame(temp_frame_path : str, frame_number : int) -> bool:
 	reference_vision_frame = read_static_video_frame(state_manager.get_item('target_path'), state_manager.get_item('reference_frame_number'))
-	source_vision_frames = read_static_images(state_manager.get_item('source_paths'))
-	source_audio_path = get_first(filter_audio_paths(state_manager.get_item('source_paths')))
+	source_paths = repository_helper.get_effective_source_paths()
+	source_vision_frames = read_static_images(source_paths) if source_paths else []
+	source_audio_path = get_first(filter_audio_paths(source_paths)) if source_paths else None
 	temp_video_fps = restrict_video_fps(state_manager.get_item('target_path'), state_manager.get_item('output_video_fps'))
 	target_vision_frame = read_static_image(temp_frame_path)
 	temp_vision_frame = target_vision_frame.copy()

@@ -120,34 +120,41 @@ def extract_orientation_from_image_path(image_path: str) -> Optional[Dict[str, f
 		Dictionary with 'pitch', 'yaw', 'roll' angles in degrees, or None if no face detected
 	"""
 	try:
+		from facefusion import face_detector
+		
 		# Read image
 		image = read_static_image(image_path)
 		if image is None:
 			logger.warn(f"Could not read image: {image_path}", __name__.upper())
 			return None
 		
-		# Detect faces
-		faces = face_detector.detect_faces(image)
-		if not faces:
+		# Detect faces - returns (bounding_boxes, scores, landmarks_5)
+		bounding_boxes, scores, landmarks_5 = face_detector.detect_faces(image)
+		if not bounding_boxes or len(bounding_boxes) == 0:
 			logger.warn(f"No face detected in image: {image_path}", __name__.upper())
 			return None
 		
-		# Use the first (or largest) face
-		face = faces[0]
+		# Use the first face
+		bounding_box = bounding_boxes[0]
+		landmark_5 = landmarks_5[0]
 		
-		# Ensure we have 68-point landmarks for pose estimation
-		if face.landmark_set is None or '68' not in face.landmark_set:
-			# Extract 68-point landmarks if not present
-			face = face_landmarker.detect_face_landmarks(image, face, '68')
-			if face.landmark_set is None or '68' not in face.landmark_set:
-				logger.warn(f"Could not extract 68-point landmarks from: {image_path}", __name__.upper())
-				return None
+		# Extract 68-point landmarks for pose estimation
+		face_landmark_68, landmark_score = face_landmarker.detect_face_landmark(
+			image,
+			bounding_box,
+			0  # angle - use 0 for frontal detection
+		)
 		
-		# Extract orientation
-		return extract_3d_orientation(face)
+		if face_landmark_68 is None:
+			logger.warn(f"Could not extract 68-point landmarks from: {image_path}", __name__.upper())
+			return None
+		
+		# Calculate orientation from 68-point landmarks
+		return extract_3d_orientation_from_landmarks(face_landmark_68)
 	
 	except Exception as error:
-		logger.error(f"Error extracting orientation from {image_path}: {error}", __name__.upper())
+		import traceback
+		logger.error(f"Error extracting orientation from {image_path}: {error}\n{traceback.format_exc()}", __name__.upper())
 		return None
 
 

@@ -7,7 +7,8 @@ FaceFusion is an industry-leading face manipulation platform with a modular arch
 - **Core System**: State-managed processing pipeline with CLI/GUI interfaces
 - **Processors**: Pluggable face manipulation modules (swapping, enhancement, etc.)
 - **Jobs System**: Async task management with status tracking
-- **Repository**: Person-based face library with quality assessment and pose-aware selection
+- **Repository**: Person-based face library with quality assessment, 3D pose-aware selection, and import preview
+- **Zone Management**: 3D coverage zones for optimal face orientation matching
 - **Inference Engine**: ONNX-based ML model execution with memory management
 
 ### Key Entry Points
@@ -55,15 +56,40 @@ face_detector_model = get_str_value('face_detector', 'face_detector_model', 'yol
 - JSON-based metadata in `.face_repository/persons.json`
 - Images organized as `.face_repository/faces/{person_id}/{uuid}.{ext}`
 - Quality assessment using multi-metric scoring (sharpness, brightness, contrast, resolution)
+- 3D orientation extraction and zone-based coverage management
+- Import preview system for comparing face swaps before committing
+
+### Enhanced Repository Features (Recent)
+
+#### 3D Orientation & Zone Management
+```python
+from facefusion_repository.orientation import extract_orientation_from_image_path
+from facefusion_repository.zone_manager import calculate_zone_from_orientation
+
+# Extract 3D orientation (pitch, yaw, roll) from face image
+orientation = extract_orientation_from_image_path('face.jpg')
+zone = calculate_zone_from_orientation(orientation, tolerance=15.0)
+```
+
+#### Import Preview System
+```python
+from facefusion_repository.preview import generate_import_preview
+from facefusion_repository.test_faces import get_test_faces
+
+# Generate preview before adding faces to repository
+test_faces = get_test_faces('./test_faces')
+preview_result = generate_import_preview('person_name', 'new_face.jpg', test_faces)
+```
 
 ### Quality Assessment Integration
 When adding faces, always consider quality filtering:
 ```python
-# CLI pattern
+# CLI pattern with orientation overlap detection
 python facefusion.py repo-add --person "Name" --face-paths *.jpg --quality-threshold 0.7
 
-# API pattern  
-manager.create_person("Name", face_paths, quality_threshold=0.7)
+# API pattern with enhanced features
+manager.create_person("Name", face_paths, quality_threshold=0.7, 
+                     extract_orientation=True, orientation_tolerance=15.0)
 ```
 
 ## Development Workflows
@@ -127,22 +153,38 @@ Core computer vision in `facefusion/vision.py`:
 ## Repository-Specific Development
 
 ### Face Selection Logic
-Repository selector uses fallback chains:
+Repository selector uses fallback chains with multiple selection modes:
 ```python
 # Primary → fallback → default selection
 selector = RepositorySelector()
 faces = selector.select_faces(
     person="Primary", 
     fallback_persons=["Backup1", "Backup2"],
-    selection_mode="best-quality"
+    selection_mode="best-quality"  # or "best-orientation", "pose-matching"
 )
 ```
 
-### Pose-Aware Selection
-3D pose calculation for intelligent face matching:
+### 3D Orientation-Based Selection (New Algorithm)
+Replaces pose-based selection with improved 3D orientation matching:
 ```python
-from facefusion_repository.pose_calculator import calculate_pose_from_landmarks
-pose = calculate_pose_from_landmarks(landmarks_68)  # Returns (pitch, yaw, roll)
+from facefusion_repository.selector import RepositorySelector
+from facefusion_repository.orientation import calculate_orientation_distance
+
+# Get best face by orientation proximity
+target_orientation = {'pitch': 10.0, 'yaw': -15.0, 'roll': 2.0}
+best_face = selector.get_best_face_by_orientation(person_faces, target_orientation)
+
+# Manual distance calculation for custom logic
+distance = calculate_orientation_distance(target_orientation, face_orientation)
+```
+
+### Zone Coverage Management
+3D coverage zones prevent orientation overlaps and optimize face diversity:
+```python
+from facefusion_repository.zone_manager import calculate_zone_from_orientation, check_zone_overlap
+
+zone = calculate_zone_from_orientation(orientation, tolerance=15.0)
+has_overlap = check_zone_overlap(zone1, zone2)  # Returns bool
 ```
 
 ## Common Debugging Patterns

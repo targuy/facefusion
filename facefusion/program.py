@@ -295,8 +295,8 @@ def create_person_name_program() -> ArgumentParser:
 	program.add_argument('--person', help = 'person name from repository', required = True)
 	program.add_argument('--fallback-persons', help = 'fallback person names (comma-separated)', default = None)
 	program.add_argument('--orientation-tolerance', help = 'maximum angular difference for pose matching (degrees)', type = float, default = 15.0)
-	program.add_argument('--face-selector-mode', help = 'face selection mode for repository', choices = ['best-quality', 'all', 'first'], default = 'all')
-	job_store.register_job_keys([ 'person', 'fallback_persons', 'orientation_tolerance', 'face_selector_mode' ])
+	program.add_argument('--repo-face-selector-mode', help = 'face selection mode for repository', choices = ['best-quality', 'all', 'first'], default = 'all')
+	job_store.register_job_keys([ 'person', 'fallback_persons', 'orientation_tolerance', 'repo_face_selector_mode' ])
 	return program
 
 
