@@ -110,16 +110,29 @@ def main() -> int:
         print('Missing orientations:', ', '.join(f'{a}°' for a in sorted(missing)))
     print()
     
-    # Visual representation
-    print('Orientation Wheel:')
-    print('           0°', '✓' if 0 in covered else '✗')
-    print('       ┌───┴───┐')
-    print('    315°│     │45°', '✓' if 315 in covered else '✗', '/', '✓' if 45 in covered else '✗')
-    print('   ┌────┤  *  ├────┐')
-    print('  270°  └─────┘   90°', '✓' if 270 in covered else '✗', '/', '✓' if 90 in covered else '✗')
-    print('       └───┬───┘')
-    print('          180°', '✓' if 180 in covered else '✗')
+    # Visual representation using helper function
+    print_orientation_wheel(covered)
     print()
+
+
+def print_orientation_wheel(covered: list) -> None:
+    """
+    Print visual orientation wheel showing covered/missing orientations.
+    
+    Args:
+        covered: List of orientation angles that are covered
+    """
+    def status(angle: int) -> str:
+        return '✓' if angle in covered else '✗'
+    
+    print('Orientation Wheel:')
+    print(f'           0° {status(0)}')
+    print('       ┌───┴───┐')
+    print(f'    315° {status(315)} │     │ 45° {status(45)}')
+    print('   ┌────┤  *  ├────┐')
+    print(f'  270° {status(270)}  └─────┘   90° {status(90)}')
+    print('       └───┬───┘')
+    print(f'          180° {status(180)}')
     
     # Step 4: Check for queues
     print_section('Step 4: Processing Queues')
@@ -146,7 +159,11 @@ def main() -> int:
         print()
         for queue in queues:
             face = repo.get_face(queue.source_face_id)
-            name = face.metadata.name if face and face.metadata.name else 'Unnamed'
+            # Get face name with explicit null checking for clarity
+            if face and face.metadata and face.metadata.name:
+                name = face.metadata.name
+            else:
+                name = 'Unnamed'
             
             print(f'  • {queue.source_face_id} ({name})')
             print(f'    Matches: {queue.get_size()}')
