@@ -24,10 +24,17 @@ The FaceFusion Repository System is a sophisticated but **incomplete** implement
 Traditional face swapping fails when source and destination face orientations differ significantly. A frontal source face swapped onto a profile view destination produces poor results.
 
 **Solution Approach:**
-- Maintain a repository of source face images at multiple orientation angles (0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°)
+- Maintain a repository of source face images at multiple visible orientations
+- Note: FaceFusion's face detection provides 4 orientation angles (0°, 90°, 180°, 270°) based on 2D horizontal rotation
+- Filter out hidden/occluded faces (back views ~135-225°) as they lack sufficient facial features for swapping
 - Detect orientation of destination faces
-- Automatically select the best-matching source face orientation
+- Automatically select the best-matching visible source face orientation
 - Execute swaps using matched orientations for natural results
+
+**Important Limitations:**
+- Orientation is measured via 2D horizontal rotation (yaw angle only), not full 3D head pose
+- Pitch (up/down tilt) and roll (head tilt) are not captured by FaceFusion's current detection
+- Back-facing angles (135-225°) are automatically filtered as they hide facial features
 
 ### 1.2 Architecture Overview
 

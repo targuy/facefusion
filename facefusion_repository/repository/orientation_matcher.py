@@ -1,5 +1,9 @@
 """
 Orientation matching for face repository system.
+
+Handles face orientation matching with support for filtering hidden/occluded faces.
+Note: FaceFusion's estimate_face_angle only returns 4 angles (0°, 90°, 180°, 270°)
+based on 2D horizontal rotation (yaw). This module extends that with visibility checks.
 """
 
 from typing import List, Optional
@@ -11,7 +15,12 @@ class OrientationMatcher:
     """Matches faces based on orientation angles."""
 
     # Standard orientation angles (8 directions)
+    # Note: FaceFusion only provides 4 angles (0, 90, 180, 270)
     STANDARD_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315]
+    
+    # Angles where face is typically hidden or heavily occluded
+    # Back views (135-225°) should generally be avoided for face swapping
+    HIDDEN_ANGLE_RANGES = [(135, 225)]  # Back view range
 
     @staticmethod
     def normalize_angle(angle: int) -> int:
@@ -126,6 +135,53 @@ class OrientationMatcher:
         """
         distance = OrientationMatcher.calculate_angle_distance(angle1, angle2)
         return distance <= threshold
+    
+    @staticmethod
+    def is_face_visible(angle: int, strict: bool = True) -> bool:
+        """
+        Check if a face at given orientation is likely visible (not hidden).
+        
+        Faces turned significantly away (back views) are typically not suitable
+        for face swapping as important facial features are occluded.
+        
+        Args:
+            angle: Face orientation angle (0-360)
+            strict: If True, apply stricter filtering for back views
+        
+        Returns:
+            True if face is likely visible, False if hidden/heavily occluded
+        """
+        normalized_angle = OrientationMatcher.normalize_angle(angle)
+        
+        # Check if angle falls in hidden ranges
+        for start_angle, end_angle in OrientationMatcher.HIDDEN_ANGLE_RANGES:
+            if strict:
+                # Strict mode: reject back views (135-225°)
+                if start_angle <= normalized_angle <= end_angle:
+                    return False
+            else:
+                # Lenient mode: only reject direct back view (165-195°)
+                if 165 <= normalized_angle <= 195:
+                    return False
+        
+        return True
+    
+    @staticmethod
+    def filter_visible_faces(faces: List[FaceEntry], strict: bool = True) -> List[FaceEntry]:
+        """
+        Filter out faces with hidden/occluded orientations.
+        
+        Args:
+            faces: List of face entries to filter
+            strict: If True, apply stricter filtering
+        
+        Returns:
+            List of faces with visible orientations only
+        """
+        return [
+            face for face in faces 
+            if OrientationMatcher.is_face_visible(face.orientation_angle, strict=strict)
+        ]
 
     @staticmethod
     def group_by_orientation(
