@@ -83,7 +83,18 @@ class FaceMetadata:
 
 @dataclass
 class FaceEntry:
-    """Represents a face in the repository."""
+    """
+    Represents a face in the repository.
+    
+    Attributes:
+        id: Unique identifier for the face entry
+        file_path: Path to the stored face image file
+        orientation: Multi-axis orientation (yaw, pitch, roll) in degrees
+        quality_metrics: Quality assessment scores for the face
+        face_embedding: 128/512-dimensional feature vector for face recognition
+        face_landmarks: Dictionary containing landmark coordinates ('5' and/or '68' point sets)
+        metadata: Additional information (name, character, tags, date added)
+    """
     id: str
     file_path: str
     orientation: FaceOrientation  # Multi-axis orientation

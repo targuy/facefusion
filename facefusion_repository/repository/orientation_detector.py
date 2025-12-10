@@ -19,6 +19,15 @@ EPSILON = 1e-6
 YAW_SCALE_FACTOR = 90.0
 PITCH_SCALE_FACTOR = 45.0
 
+# 68-point landmark indices (dlib format)
+LANDMARK_NOSE_TIP = 30
+LANDMARK_CHIN = 8
+LANDMARK_LEFT_EYE_OUTER = 36
+LANDMARK_RIGHT_EYE_OUTER = 45
+LANDMARK_LEFT_MOUTH = 48
+LANDMARK_RIGHT_MOUTH = 54
+LANDMARK_EYEBROW_TOP = 27
+
 
 class OrientationDetector:
     """Detects face orientation automatically from facial landmarks."""
@@ -68,18 +77,15 @@ class OrientationDetector:
         """
         Calculate orientation from 68-point landmarks.
         
-        Uses key facial points for accurate pose estimation:
-        - Nose tip (30), Chin (8)
-        - Left/right eye corners (36, 45)
-        - Left/right mouth corners (48, 54)
+        Uses key facial points for accurate pose estimation.
         """
-        # Extract key landmarks
-        nose_tip = landmarks[30]
-        chin = landmarks[8]
-        left_eye = landmarks[36]
-        right_eye = landmarks[45]
-        left_mouth = landmarks[48]
-        right_mouth = landmarks[54]
+        # Extract key landmarks using named constants
+        nose_tip = landmarks[LANDMARK_NOSE_TIP]
+        chin = landmarks[LANDMARK_CHIN]
+        left_eye = landmarks[LANDMARK_LEFT_EYE_OUTER]
+        right_eye = landmarks[LANDMARK_RIGHT_EYE_OUTER]
+        left_mouth = landmarks[LANDMARK_LEFT_MOUTH]
+        right_mouth = landmarks[LANDMARK_RIGHT_MOUTH]
         
         # Calculate yaw (horizontal rotation) from eye-nose asymmetry
         nose_to_left_eye = np.linalg.norm(nose_tip - left_eye)
@@ -88,7 +94,7 @@ class OrientationDetector:
         yaw = np.clip(eye_asymmetry * YAW_SCALE_FACTOR, -90, 90)
         
         # Calculate pitch (vertical tilt) from nose position
-        face_height = np.linalg.norm(landmarks[27] - chin)  # Eyebrow to chin
+        face_height = np.linalg.norm(landmarks[LANDMARK_EYEBROW_TOP] - chin)
         nose_chin_y = nose_tip[1] - chin[1]
         pitch_ratio = nose_chin_y / (face_height + EPSILON)
         pitch = np.clip(pitch_ratio * PITCH_SCALE_FACTOR, -45, 45)
