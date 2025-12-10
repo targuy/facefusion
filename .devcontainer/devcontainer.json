@@ -1,0 +1,36 @@
+{
+	"name": "FaceFusion Repository System",
+	"image": "mcr.microsoft.com/devcontainers/python:3.12",
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {},
+		"ghcr.io/devcontainers/features/nvidia-cuda:1": {
+			"installCudnn": true
+		}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-toolsai.jupyter"
+			],
+			"settings": {
+				"python.defaultInterpreterPath": "/usr/local/bin/python",
+				"python.linting.enabled": true,
+				"python.linting.pylintEnabled": false,
+				"python.linting.flake8Enabled": true,
+				"python.formatting.provider": "black"
+			}
+		}
+	},
+	"postCreateCommand": "pip install --upgrade pip && pip install -r requirements.txt",
+	"remoteUser": "vscode",
+	"mounts": [
+		"source=${localWorkspaceFolder}/.facefusion_repository,target=/home/vscode/.facefusion_repository,type=bind,consistency=cached"
+	],
+	"containerEnv": {
+		"FACEFUSION_EXECUTION_PROVIDER": "cpu",
+		"FACEFUSION_EXECUTION_PROVIDERS": "CPUExecutionProvider"
+	},
+	"postStartCommand": "echo 'Note: GPU support requires nvidia-docker. Remove runArgs for CPU-only systems.'"
+}
