@@ -25,14 +25,12 @@
 	},
 	"postCreateCommand": "pip install --upgrade pip && pip install -r requirements.txt",
 	"remoteUser": "vscode",
-	"runArgs": [
-		"--gpus=all"
-	],
 	"mounts": [
 		"source=${localWorkspaceFolder}/.facefusion_repository,target=/home/vscode/.facefusion_repository,type=bind,consistency=cached"
 	],
 	"containerEnv": {
 		"FACEFUSION_EXECUTION_PROVIDER": "cpu",
 		"FACEFUSION_EXECUTION_PROVIDERS": "CPUExecutionProvider"
-	}
+	},
+	"postStartCommand": "echo 'Note: GPU support requires nvidia-docker. Remove runArgs for CPU-only systems.'"
 }

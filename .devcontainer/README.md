@@ -27,17 +27,38 @@ This directory contains the devcontainer configuration for GitHub Codespaces and
 
 ## CPU vs GPU Mode
 
-The container defaults to CPU mode for compatibility. To use GPU:
+The container defaults to CPU mode for maximum compatibility.
+
+### Using CPU Mode (Default)
+
+No changes needed - the default configuration works on all systems.
+
+### Using GPU Mode
+
+**Requirements:**
+- NVIDIA GPU with CUDA support
+- nvidia-docker2 installed on host system
+- Docker with GPU support
+
+**Enable GPU:**
 
 1. Edit `.devcontainer/devcontainer.json`
-2. Change `containerEnv`:
+2. Uncomment or add the `runArgs` section:
+   ```json
+   "runArgs": [
+       "--gpus=all"
+   ],
+   ```
+3. Change `containerEnv`:
    ```json
    "containerEnv": {
        "FACEFUSION_EXECUTION_PROVIDER": "cuda",
-       "FACEFUSION_EXECUTION_PROVIDERS": "CUDAExecutionProvider"
+       "FACEFUSION_EXECUTION_PROVIDERS": "CUDAExecutionProvider,CPUExecutionProvider"
    }
    ```
-3. Rebuild the container
+4. Rebuild the container
+
+**Note**: If your system doesn't have GPU support, the default CPU configuration will work without any changes.
 
 ## Quick Start
 

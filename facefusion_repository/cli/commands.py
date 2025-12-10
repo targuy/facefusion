@@ -46,8 +46,7 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
         '--character',
         '--character-name',
         dest='character_name',
-        required=True,
-        help='Character/person name (primary identifier)'
+        help='Character/person name (primary identifier). If not provided, uses --name value.'
     )
     parser_add.add_argument(
         '--face-name',
@@ -55,7 +54,7 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
     )
     parser_add.add_argument(
         '--name',
-        help='[DEPRECATED] Use --character instead. For backward compatibility only.'
+        help='Legacy name parameter. Used as character_name if --character not provided.'
     )
     parser_add.add_argument(
         '--tags',

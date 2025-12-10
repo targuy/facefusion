@@ -23,7 +23,7 @@ class Config:
     # Processing settings
     DEFAULT_FRAME_SAMPLE_RATE: int = 1
     DEFAULT_MIN_CONFIDENCE: float = 0.5
-    DEFAULT_ORIENTATION_TOLERANCE: int = 22
+    DEFAULT_ORIENTATION_TOLERANCE: int = 22  # Degrees of angular difference allowed for orientation matching
     
     # GPU settings
     CUDA_DEVICE_ID: int = 0

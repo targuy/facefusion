@@ -57,12 +57,18 @@ class FaceOrientation:
         )
     
     def get_legacy_angle(self) -> int:
-        """Get legacy single-axis orientation angle (0-360)."""
+        """
+        Get legacy single-axis orientation angle (0-360).
+        
+        Converts yaw to 0-360 degree range for backward compatibility.
+        Input yaw range is -180 to 180 degrees.
+        
+        Returns:
+            Angle in 0-360 range (e.g., -45 becomes 315)
+        """
         # Normalize yaw to 0-360 range
-        angle = int(self.yaw) % 360
-        if angle < 0:
-            angle += 360
-        return angle
+        angle = self.yaw % 360
+        return int(angle)
 
 
 @dataclass
