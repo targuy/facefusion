@@ -7,10 +7,12 @@ This module serves as the execution engine that actually performs face swaps.
 
 import shutil
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
+from facefusion.filesystem import is_image, is_video
 from facefusion_repository.destination.queue_manager import ProcessingQueue, QueueManager
 from facefusion_repository.repository.manager import RepositoryManager
 from facefusion_repository.batch.progress_tracker import ProgressTracker
@@ -126,7 +128,6 @@ class BatchExecutor:
         self.progress_tracker = ProgressTracker(total_operations)
 
         # Process each queue
-        import time
         start_time = time.time()
         queue_results = []
 
@@ -171,7 +172,6 @@ class BatchExecutor:
         Returns:
             QueueResult with execution details
         """
-        import time
         start_time = time.time()
 
         print(f"\nProcessing Queue: {queue.source_face_name or queue.source_face_id}")
@@ -285,10 +285,9 @@ class BatchExecutor:
         Returns:
             Path to output file, or None if processing failed
         """
-        from facefusion.filesystem import is_image, is_video
-
         try:
-            output_file = Path(output_path) / f"{Path(source_file).stem}_swapped{Path(source_file).suffix}"
+            source_path = Path(source_file)
+            output_file = Path(output_path) / f"{source_path.stem}_swapped{source_path.suffix}"
 
             if is_image(source_file):
                 # For images: Would load image, detect faces, swap, save

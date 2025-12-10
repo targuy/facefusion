@@ -10,6 +10,10 @@ from facefusion_repository.destination.analyzer import DestinationAnalyzer
 from facefusion_repository.destination.queue_manager import QueueManager
 
 
+# Constants
+ESTIMATED_SECONDS_PER_FACE_SWAP = 0.5  # Average time estimate for processing a single face swap
+
+
 def register_repository_commands(subparsers: argparse._SubParsersAction) -> None:
     """
     Register repository commands with the argument parser.
@@ -600,6 +604,9 @@ def cmd_batch_run(args: argparse.Namespace) -> int:
     repo_manager = RepositoryManager()
     queue_manager = QueueManager()
     executor = BatchExecutor(queue_manager, repo_manager)
+    
+    # Check dry_run flag
+    dry_run_mode = getattr(args, 'dry_run', False)
 
     # Progress callback
     def progress_callback(current: int, total: int) -> None:
@@ -612,10 +619,10 @@ def cmd_batch_run(args: argparse.Namespace) -> int:
         result = executor.execute_all_queues(
             output_path=args.output,
             progress_callback=progress_callback,
-            dry_run=args.dry_run if hasattr(args, 'dry_run') else False
+            dry_run=dry_run_mode
         )
 
-        if args.dry_run if hasattr(args, 'dry_run') else False:
+        if dry_run_mode:
             return 0
 
         # Display results
@@ -682,9 +689,8 @@ def cmd_batch_status(args: argparse.Namespace) -> int:
     print(f'Total Faces to Process: {stats.total_faces}')
     print()
 
-    # Estimate processing time (rough estimate)
-    # Assume 0.5 seconds per face swap on average
-    estimated_time = stats.total_faces * 0.5
+    # Estimate processing time
+    estimated_time = stats.total_faces * ESTIMATED_SECONDS_PER_FACE_SWAP
     hours = int(estimated_time / 3600)
     minutes = int((estimated_time % 3600) / 60)
     seconds = int(estimated_time % 60)
