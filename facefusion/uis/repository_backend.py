@@ -404,3 +404,152 @@ def get_repository_statistics() -> Tuple[str, str]:
         return stats_text, coverage_html
     except Exception as e:
         return f"Error: {str(e)}", "<p>Error generating coverage</p>"
+
+
+def get_character_list_for_swap() -> list:
+    """
+    Get list of characters for swap dropdown.
+    
+    Returns:
+        List of character choices (ID: Name format)
+    """
+    try:
+        char_mgr = CharacterManager()
+        characters = char_mgr.list_characters()
+        
+        if not characters:
+            return []
+        
+        # Format as "ID: Name" for display
+        choices = [f"{char.id}: {char.name}" for char in characters]
+        return choices
+    except Exception as e:
+        print(f"Error getting character list: {e}")
+        return []
+
+
+def get_character_info_for_swap(character_selection: str) -> str:
+    """
+    Get character information for display.
+    
+    Args:
+        character_selection: Selected character (format: "ID: Name")
+        
+    Returns:
+        Character info text
+    """
+    try:
+        if not character_selection:
+            return "No character selected"
+        
+        # Extract character ID from "ID: Name" format
+        char_id = character_selection.split(':')[0].strip()
+        
+        char_mgr = CharacterManager()
+        character = char_mgr.get_character(char_id)
+        
+        if not character:
+            return f"Character not found: {char_id}"
+        
+        # Get face count
+        repo = RepositoryManager()
+        all_faces = repo.list_faces()
+        char_faces = [face for face in all_faces if face.metadata.character_name == character.id]
+        
+        info = f"Character: {character.name}\n"
+        info += f"Faces Available: {len(char_faces)}\n"
+        
+        if char_faces:
+            info += "Orientations: "
+            orientations = [f"{face.orientation_angle}°" for face in char_faces]
+            info += ", ".join(orientations) + "\n"
+        
+        return info
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def perform_face_swap(
+    character_selection: str,
+    target_file: Optional[str],
+    face_selector_mode: str,
+    output_path: Optional[str]
+) -> Tuple[str, Optional[str], Optional[str]]:
+    """
+    Perform face swap using character's faces.
+    
+    Args:
+        character_selection: Selected character (format: "ID: Name")
+        target_file: Path to target image/video
+        face_selector_mode: Face selection mode
+        output_path: Optional output path
+        
+    Returns:
+        Tuple of (progress_text, preview_image_path, result_file_path)
+    """
+    try:
+        # Validate inputs
+        if not character_selection:
+            return ("Error: Please select a character", None, None)
+        
+        if not target_file:
+            return ("Error: Please upload a target image or video", None, None)
+        
+        # Extract character ID
+        char_id = character_selection.split(':')[0].strip()
+        
+        # Get character and faces
+        char_mgr = CharacterManager()
+        character = char_mgr.get_character(char_id)
+        
+        if not character:
+            return (f"Error: Character {char_id} not found", None, None)
+        
+        repo = RepositoryManager()
+        all_faces = repo.list_faces()
+        char_faces = [face for face in all_faces if face.metadata.character_name == character.id]
+        
+        if not char_faces:
+            return (f"Error: No faces found for character {character.name}", None, None)
+        
+        # Build progress message
+        progress = f"Face Swap Configuration:\n"
+        progress += f"═══════════════════════════════\n\n"
+        progress += f"Character: {character.name}\n"
+        progress += f"Available Faces: {len(char_faces)}\n"
+        progress += f"Target: {Path(target_file).name}\n"
+        progress += f"Mode: {face_selector_mode}\n\n"
+        
+        # List available face orientations
+        progress += "Available Face Angles:\n"
+        for face in char_faces:
+            progress += f"  • {face.orientation_angle}° (Quality: {face.quality_metrics.overall_quality:.2f})\n"
+            if face.orientation:
+                progress += f"    3D: yaw={face.orientation.yaw:.1f}°, pitch={face.orientation.pitch:.1f}°, roll={face.orientation.roll:.1f}°\n"
+        
+        progress += "\n" + "─" * 50 + "\n\n"
+        progress += "⚠️ FACE SWAP EXECUTION NOT YET FULLY INTEGRATED\n\n"
+        progress += "The repository system is ready, but face swap execution\n"
+        progress += "requires integration with FaceFusion's core face-swapping engine.\n\n"
+        progress += "Current Status:\n"
+        progress += "✓ Multiple faces stored and organized by character\n"
+        progress += "✓ Automatic orientation detection functional\n"
+        progress += "✓ Best face selection algorithm ready\n"
+        progress += "⏳ Integration with FaceFusion swap engine needed\n\n"
+        progress += "Next Steps for Full Implementation:\n"
+        progress += "1. Integrate with FaceFusion's face detection\n"
+        progress += "2. Implement frame-by-frame orientation matching\n"
+        progress += "3. Apply best-face selection per frame\n"
+        progress += "4. Execute swap using FaceFusion's processor\n\n"
+        progress += "For now, you can:\n"
+        progress += "• Manage faces and characters in the repository\n"
+        progress += "• View orientation coverage and statistics\n"
+        progress += "• Prepare multi-angle face sets for future swapping\n"
+        
+        return (progress, None, None)
+        
+    except Exception as e:
+        import traceback
+        error_msg = f"Error during face swap:\n{str(e)}\n\n"
+        error_msg += traceback.format_exc()
+        return (error_msg, None, None)

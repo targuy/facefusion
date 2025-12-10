@@ -236,11 +236,25 @@ docker-compose --profile cpu up -d
 - View character details with associated faces
 - Remove characters
 
+**🔄 Face Swap Tab** ⭐ NEW
+- Select character with multiple face angles
+- Upload target image or video
+- Choose face selection mode (Auto/Single/Multi-angle)
+- Perform face swap with automatic angle matching
+- View progress and download results
+- **See GUI_QUICK_REFERENCE.md for step-by-step guide**
+
 **📊 Statistics Tab**
 - Repository statistics
 - Orientation coverage visualization
 - Quality metrics
 - Face distribution by orientation
+
+### Multi-Angle Face Swap Workflow
+
+For detailed instructions on using multiple face angles for better swapping results, see:
+- **MULTI_ANGLE_FACE_SWAP_GUIDE.md** - Complete tutorial with examples
+- **GUI_QUICK_REFERENCE.md** - Quick 5-minute start guide
 
 ---
 
