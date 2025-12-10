@@ -11,11 +11,13 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from facefusion_repository.repository.orientation_matcher import OrientationMatcher
+from facefusion_repository.repository.orientation_detector import OrientationDetector
 from facefusion_repository.repository.quality_assessor import QualityAssessor
 from facefusion_repository.types import (
     DEFAULT_QUALITY_THRESHOLDS,
     FaceEntry,
     FaceMetadata,
+    FaceOrientation,
     QualityThresholds,
     RepositoryStats
 )
@@ -185,20 +187,40 @@ class RepositoryManager:
                 print(f'Quality metrics: {quality_metrics}')
                 return None
 
-            # Get orientation angle
-            orientation_angle = OrientationMatcher.get_closest_standard_angle(face.angle)
+            # Detect orientation automatically from landmarks
+            landmarks_68 = face.landmark_set.get('68')
+            landmarks_5 = face.landmark_set.get('5')
+            yaw, pitch, roll = OrientationDetector.calculate_orientation_from_landmarks(
+                landmarks_68, landmarks_5
+            )
+            
+            # Check if orientation is too extreme (face not properly visible)
+            if OrientationDetector.is_extreme_orientation(yaw, pitch, roll):
+                print(f'Face orientation too extreme in image: {image_path}')
+                print(f'Orientation: yaw={yaw:.1f}°, pitch={pitch:.1f}°, roll={roll:.1f}°')
+                print(f'Face not properly visible. Please use images where the face is clearly visible.')
+                return None
+            
+            # Create orientation object
+            orientation = FaceOrientation(yaw=yaw, pitch=pitch, roll=roll)
+            orientation_desc = OrientationDetector.get_orientation_description(yaw, pitch, roll)
+            
+            print(f'Detected orientation: {orientation_desc} (yaw={yaw:.1f}°, pitch={pitch:.1f}°, roll={roll:.1f}°)')
 
             # Check for similar orientation faces (potential duplicates)
             similar_faces = [
                 f for f in self._faces.values()
-                if OrientationMatcher.is_orientation_similar(f.orientation_angle, orientation_angle)
+                if OrientationMatcher.is_orientation_similar(
+                    f.orientation_angle, 
+                    orientation.get_legacy_angle()
+                )
             ]
 
             # If similar faces exist, only keep the highest quality one
             if similar_faces:
                 best_existing = OrientationMatcher.get_best_quality_face(similar_faces)
                 if best_existing and best_existing.quality_metrics.overall_quality > quality_metrics.overall_quality:
-                    print(f'Higher quality face already exists for orientation {orientation_angle}')
+                    print(f'Higher quality face already exists for similar orientation')
                     return None
 
                 # Remove lower quality faces
@@ -215,20 +237,21 @@ class RepositoryManager:
 
             shutil.copy2(image_path, dest_path)
 
-            # Create face entry
+            # Create face entry with automatic orientation detection
             face_entry = FaceEntry(
                 id=face_id,
                 file_path=str(dest_path),
-                orientation_angle=orientation_angle,
+                orientation=orientation,  # Multi-axis orientation
                 quality_metrics=quality_metrics,
                 face_embedding=face.embedding,
                 face_landmarks={
-                    '5': face.landmark_set['5'].tolist(),
-                    '68': face.landmark_set['68'].tolist()
+                    '5': face.landmark_set['5'].tolist() if '5' in face.landmark_set else [],
+                    '68': face.landmark_set['68'].tolist() if '68' in face.landmark_set else []
                 },
                 metadata=FaceMetadata(
                     added_date=datetime.utcnow().isoformat() + 'Z',
-                    name=name,
+                    character_name=name,  # Use name as character_name
+                    face_name=None,  # Can be set later if needed
                     tags=tags or []
                 )
             )

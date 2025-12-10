@@ -60,21 +60,6 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
         '--tags',
         help='Comma-separated tags'
     )
-    parser_add.add_argument(
-        '--yaw',
-        type=float,
-        help='Manual yaw angle (horizontal rotation, -180 to 180)'
-    )
-    parser_add.add_argument(
-        '--pitch',
-        type=float,
-        help='Manual pitch angle (vertical tilt, -90 to 90)'
-    )
-    parser_add.add_argument(
-        '--roll',
-        type=float,
-        help='Manual roll angle (head tilt, -180 to 180)'
-    )
     parser_add.set_defaults(func=cmd_repo_add_face)
 
     # repo-list command
