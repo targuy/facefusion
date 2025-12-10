@@ -439,11 +439,11 @@ def get_character_info_for_swap(character_selection: str) -> str:
         Character info text
     """
     try:
-        if not character_selection:
-            return "No character selected"
+        if not character_selection or ':' not in character_selection:
+            return "No character selected or invalid format"
         
         # Extract character ID from "ID: Name" format
-        char_id = character_selection.split(':')[0].strip()
+        char_id = character_selection.split(':', 1)[0].strip()
         
         char_mgr = CharacterManager()
         character = char_mgr.get_character(char_id)
@@ -476,7 +476,11 @@ def perform_face_swap(
     output_path: Optional[str]
 ) -> Tuple[str, Optional[str], Optional[str]]:
     """
-    Perform face swap using character's faces.
+    Prepare face swap configuration using character's faces.
+    
+    Note: This function currently validates inputs and displays configuration
+    but does not execute actual face swapping. Full integration with FaceFusion's
+    swap engine is required for complete functionality.
     
     Args:
         character_selection: Selected character (format: "ID: Name")
@@ -489,14 +493,14 @@ def perform_face_swap(
     """
     try:
         # Validate inputs
-        if not character_selection:
-            return ("Error: Please select a character", None, None)
+        if not character_selection or ':' not in character_selection:
+            return ("Error: Please select a valid character", None, None)
         
         if not target_file:
             return ("Error: Please upload a target image or video", None, None)
         
         # Extract character ID
-        char_id = character_selection.split(':')[0].strip()
+        char_id = character_selection.split(':', 1)[0].strip()
         
         # Get character and faces
         char_mgr = CharacterManager()
@@ -517,7 +521,14 @@ def perform_face_swap(
         progress += f"═══════════════════════════════\n\n"
         progress += f"Character: {character.name}\n"
         progress += f"Available Faces: {len(char_faces)}\n"
-        progress += f"Target: {Path(target_file).name}\n"
+        
+        # Safely get filename from target_file
+        try:
+            target_filename = Path(target_file).name
+        except:
+            target_filename = "Unknown file"
+        
+        progress += f"Target: {target_filename}\n"
         progress += f"Mode: {face_selector_mode}\n\n"
         
         # List available face orientations
