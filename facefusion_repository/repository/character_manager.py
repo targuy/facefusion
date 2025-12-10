@@ -83,9 +83,16 @@ class CharacterManager:
     def _save_characters(self) -> bool:
         """Save characters to disk."""
         try:
+            # Preserve original created_date, update last_modified
+            original_created = None
+            if self.characters_file.exists():
+                with open(self.characters_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    original_created = data.get('created_date')
+            
             characters_data = {
                 'version': '1.0.0',
-                'created_date': datetime.utcnow().isoformat() + 'Z',
+                'created_date': original_created or datetime.utcnow().isoformat() + 'Z',
                 'last_modified': datetime.utcnow().isoformat() + 'Z',
                 'characters': [char.to_dict() for char in self._characters.values()]
             }

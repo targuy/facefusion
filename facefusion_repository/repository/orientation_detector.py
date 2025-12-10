@@ -17,7 +17,8 @@ DEFAULT_MAX_ROLL = 45.0
 # Algorithm constants
 EPSILON = 1e-6
 YAW_SCALE_FACTOR = 90.0
-PITCH_SCALE_FACTOR = 45.0
+# 5-point landmark constants
+PITCH_SCALE_FACTOR_5PT = 30.0  # Pitch scaling for 5-point landmarks
 
 # 68-point landmark indices (dlib format)
 LANDMARK_NOSE_TIP = 30
@@ -129,7 +130,7 @@ class OrientationDetector:
         face_height = np.linalg.norm(eye_center - mouth_center)
         nose_mouth_y = nose[1] - mouth_center[1]
         pitch_ratio = nose_mouth_y / (face_height + EPSILON)
-        pitch = np.clip(pitch_ratio * 30, -30, 30)
+        pitch = np.clip(pitch_ratio * PITCH_SCALE_FACTOR_5PT, -30, 30)
         
         # Calculate roll from eye line angle
         roll = OrientationDetector._calculate_roll_from_eyes(left_eye, right_eye)

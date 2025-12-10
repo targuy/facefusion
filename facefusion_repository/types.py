@@ -298,8 +298,21 @@ class BatchProgress:
     estimated_remaining: float
 
 
-# Type Aliases
+# Type Aliases with documentation
 ProgressCallback: TypeAlias = Callable[[int, int, str], None]
-OrientationAngle: TypeAlias = int  # 0-360
+"""Callback function for progress updates.
+
+Args:
+    int: Current progress count
+    int: Total items count  
+    str: Current operation description
+"""
+
+OrientationAngle: TypeAlias = int
+"""Face orientation angle in degrees (0-360)."""
+
 FaceID: TypeAlias = str
+"""Unique identifier for a face entry."""
+
 CharacterID: TypeAlias = str
+"""Unique identifier for a character."""
