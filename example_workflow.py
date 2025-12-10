@@ -32,6 +32,26 @@ def print_section(title: str) -> None:
     print()
 
 
+def print_orientation_wheel(covered: list) -> None:
+    """
+    Print visual orientation wheel showing covered/missing orientations.
+    
+    Args:
+        covered: List of orientation angles that are covered
+    """
+    def status(angle: int) -> str:
+        return '✓' if angle in covered else '✗'
+    
+    print('Orientation Wheel:')
+    print(f'           0° {status(0)}')
+    print('       ┌───┴───┐')
+    print(f'    315° {status(315)} │     │ 45° {status(45)}')
+    print('   ┌────┤  *  ├────┐')
+    print(f'  270° {status(270)}  └─────┘   90° {status(90)}')
+    print('       └───┬───┘')
+    print(f'          180° {status(180)}')
+
+
 def main() -> int:
     """
     Run the example workflow demonstration.
@@ -113,26 +133,6 @@ def main() -> int:
     # Visual representation using helper function
     print_orientation_wheel(covered)
     print()
-
-
-def print_orientation_wheel(covered: list) -> None:
-    """
-    Print visual orientation wheel showing covered/missing orientations.
-    
-    Args:
-        covered: List of orientation angles that are covered
-    """
-    def status(angle: int) -> str:
-        return '✓' if angle in covered else '✗'
-    
-    print('Orientation Wheel:')
-    print(f'           0° {status(0)}')
-    print('       ┌───┴───┐')
-    print(f'    315° {status(315)} │     │ 45° {status(45)}')
-    print('   ┌────┤  *  ├────┐')
-    print(f'  270° {status(270)}  └─────┘   90° {status(90)}')
-    print('       └───┬───┘')
-    print(f'          180° {status(180)}')
     
     # Step 4: Check for queues
     print_section('Step 4: Processing Queues')
