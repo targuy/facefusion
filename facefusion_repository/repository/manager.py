@@ -241,7 +241,7 @@ class RepositoryManager:
             face_entry = FaceEntry(
                 id=face_id,
                 file_path=str(dest_path),
-                orientation=orientation,  # Multi-axis orientation
+                orientation=orientation,
                 quality_metrics=quality_metrics,
                 face_embedding=face.embedding,
                 face_landmarks={
@@ -250,8 +250,8 @@ class RepositoryManager:
                 },
                 metadata=FaceMetadata(
                     added_date=datetime.utcnow().isoformat() + 'Z',
-                    character_name=name,  # Use name as character_name
-                    face_name=None,  # Can be set later if needed
+                    character_name=name,
+                    face_name=None,
                     tags=tags or []
                 )
             )

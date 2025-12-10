@@ -9,6 +9,24 @@ from typing import Optional, Tuple
 import numpy as np
 
 
+# Algorithm constants
+EPSILON = 1e-6  # Small value to prevent division by zero
+
+# Orientation scaling and clipping parameters
+YAW_SCALE_FACTOR = 90.0  # Maximum yaw from asymmetry
+YAW_CLIP_MIN = -90.0
+YAW_CLIP_MAX = 90.0
+
+PITCH_SCALE_FACTOR = 45.0  # Maximum pitch from nose position
+PITCH_CLIP_MIN = -45.0
+PITCH_CLIP_MAX = 45.0
+
+# Default extreme orientation thresholds (degrees)
+DEFAULT_MAX_YAW = 75.0
+DEFAULT_MAX_PITCH = 45.0
+DEFAULT_MAX_ROLL = 45.0
+
+
 class OrientationDetector:
     """Detects face orientation from facial landmarks."""
     
@@ -32,13 +50,24 @@ class OrientationDetector:
             - pitch: -90 to 90 (vertical tilt, 0 is level)
             - roll: -180 to 180 (head tilt, 0 is upright)
         """
-        if landmarks_68 is not None and len(landmarks_68) == 68:
-            return OrientationDetector._calculate_from_68_points(landmarks_68)
-        elif landmarks_5 is not None and len(landmarks_5) == 5:
-            return OrientationDetector._calculate_from_5_points(landmarks_5)
-        else:
-            # Default to frontal if no valid landmarks
-            return (0.0, 0.0, 0.0)
+        # Check landmarks_68 first
+        if landmarks_68 is not None:
+            try:
+                if hasattr(landmarks_68, '__len__') and len(landmarks_68) == 68:
+                    return OrientationDetector._calculate_from_68_points(landmarks_68)
+            except (TypeError, AttributeError):
+                pass
+        
+        # Check landmarks_5 as fallback
+        if landmarks_5 is not None:
+            try:
+                if hasattr(landmarks_5, '__len__') and len(landmarks_5) == 5:
+                    return OrientationDetector._calculate_from_5_points(landmarks_5)
+            except (TypeError, AttributeError):
+                pass
+        
+        # Default to frontal if no valid landmarks
+        return (0.0, 0.0, 0.0)
     
     @staticmethod
     def _calculate_from_68_points(landmarks: np.ndarray) -> Tuple[float, float, float]:
@@ -63,20 +92,19 @@ class OrientationDetector:
         # Based on asymmetry of left/right eye distances from nose
         nose_to_left_eye = np.linalg.norm(nose_tip - left_eye)
         nose_to_right_eye = np.linalg.norm(nose_tip - right_eye)
-        eye_asymmetry = (nose_to_left_eye - nose_to_right_eye) / (nose_to_left_eye + nose_to_right_eye + 1e-6)
-        yaw = np.clip(eye_asymmetry * 90, -90, 90)
+        eye_asymmetry = (nose_to_left_eye - nose_to_right_eye) / (nose_to_left_eye + nose_to_right_eye + EPSILON)
+        yaw = np.clip(eye_asymmetry * YAW_SCALE_FACTOR, YAW_CLIP_MIN, YAW_CLIP_MAX)
         
         # Calculate pitch (vertical tilt)
         # Based on nose-to-chin vertical distance relative to face height
         face_height = np.linalg.norm(landmarks[27] - chin)  # Eyebrow to chin
         nose_chin_y = nose_tip[1] - chin[1]
-        pitch_ratio = nose_chin_y / (face_height + 1e-6)
-        pitch = np.clip(pitch_ratio * 45, -45, 45)
+        pitch_ratio = nose_chin_y / (face_height + EPSILON)
+        pitch = np.clip(pitch_ratio * PITCH_SCALE_FACTOR, PITCH_CLIP_MIN, PITCH_CLIP_MAX)
         
         # Calculate roll (head tilt)
         # Based on eye line angle
-        eye_vector = right_eye - left_eye
-        roll = math.degrees(math.atan2(eye_vector[1], eye_vector[0]))
+        roll = OrientationDetector._calculate_roll_from_eyes(left_eye, right_eye)
         
         return (float(yaw), float(pitch), float(roll))
     
@@ -96,31 +124,45 @@ class OrientationDetector:
         # Calculate yaw from eye-nose distances
         nose_to_left_eye = np.linalg.norm(nose - left_eye)
         nose_to_right_eye = np.linalg.norm(nose - right_eye)
-        eye_asymmetry = (nose_to_left_eye - nose_to_right_eye) / (nose_to_left_eye + nose_to_right_eye + 1e-6)
-        yaw = np.clip(eye_asymmetry * 90, -90, 90)
+        eye_asymmetry = (nose_to_left_eye - nose_to_right_eye) / (nose_to_left_eye + nose_to_right_eye + EPSILON)
+        yaw = np.clip(eye_asymmetry * YAW_SCALE_FACTOR, YAW_CLIP_MIN, YAW_CLIP_MAX)
         
         # Calculate pitch from nose-mouth vertical distance
         eye_center = (left_eye + right_eye) / 2
         mouth_center = (left_mouth + right_mouth) / 2
         face_height = np.linalg.norm(eye_center - mouth_center)
         nose_mouth_y = nose[1] - mouth_center[1]
-        pitch_ratio = nose_mouth_y / (face_height + 1e-6)
+        pitch_ratio = nose_mouth_y / (face_height + EPSILON)
         pitch = np.clip(pitch_ratio * 30, -30, 30)
         
         # Calculate roll from eye line angle
-        eye_vector = right_eye - left_eye
-        roll = math.degrees(math.atan2(eye_vector[1], eye_vector[0]))
+        roll = OrientationDetector._calculate_roll_from_eyes(left_eye, right_eye)
         
         return (float(yaw), float(pitch), float(roll))
+    
+    @staticmethod
+    def _calculate_roll_from_eyes(left_eye: np.ndarray, right_eye: np.ndarray) -> float:
+        """
+        Calculate roll angle from eye positions.
+        
+        Args:
+            left_eye: Left eye position (x, y)
+            right_eye: Right eye position (x, y)
+            
+        Returns:
+            Roll angle in degrees
+        """
+        eye_vector = right_eye - left_eye
+        return float(math.degrees(math.atan2(eye_vector[1], eye_vector[0])))
     
     @staticmethod
     def is_extreme_orientation(
         yaw: float,
         pitch: float,
         roll: float,
-        max_yaw: float = 75.0,
-        max_pitch: float = 45.0,
-        max_roll: float = 45.0
+        max_yaw: float = DEFAULT_MAX_YAW,
+        max_pitch: float = DEFAULT_MAX_PITCH,
+        max_roll: float = DEFAULT_MAX_ROLL
     ) -> bool:
         """
         Check if face orientation is too extreme (face not properly visible).
