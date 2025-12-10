@@ -10,7 +10,7 @@ import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple, Any
 
 from facefusion_repository.repository.orientation_detector import OrientationDetector
 from facefusion_repository.repository.orientation_matcher import OrientationMatcher
@@ -130,7 +130,7 @@ class RepositoryManager:
     def add_face(
         self,
         image_path: str,
-        face_data: any,  # Face data from FaceFusion detector
+        face_data: Any,  # Face data from FaceFusion detector
         name: Optional[str] = None,
         tags: Optional[List[str]] = None,
         character_id: Optional[str] = None,

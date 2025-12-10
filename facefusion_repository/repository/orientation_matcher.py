@@ -81,11 +81,7 @@ class OrientationMatcher:
         """
         def normalize_angle(angle: float) -> float:
             """Normalize angle to -180 to 180 range."""
-            while angle > 180:
-                angle -= 360
-            while angle < -180:
-                angle += 360
-            return angle
+            return ((angle + 180) % 360) - 180
         
         yaw_diff = abs(normalize_angle(orient1.yaw - orient2.yaw))
         pitch_diff = abs(normalize_angle(orient1.pitch - orient2.pitch))

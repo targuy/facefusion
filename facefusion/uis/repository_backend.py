@@ -130,7 +130,7 @@ def list_faces_in_repository(
                 f"{face.orientation_angle}°",
                 orient_3d,
                 f"{face.quality_metrics.overall_quality:.2f}",
-                face.metadata.character_id or "-"
+                face.metadata.character_name or "-"
             ])
         
         return result
@@ -180,8 +180,8 @@ def show_face_details(face_id: str) -> str:
         details += f"  Detector Score: {face.quality_metrics.detector_score:.2f}\n"
         details += f"  Resolution: {face.quality_metrics.resolution[0]}x{face.quality_metrics.resolution[1]}\n\n"
         
-        if face.metadata.character_id:
-            details += f"Character ID: {face.metadata.character_id}\n"
+        if face.metadata.character_name:
+            details += f"Character ID: {face.metadata.character_name}\n"
         if face.metadata.tags:
             details += f"Tags: {', '.join(face.metadata.tags)}\n"
         details += f"Added: {face.metadata.added_date}\n"
@@ -277,7 +277,7 @@ def list_characters() -> List[List[str]]:
         
         result = []
         for char in characters:
-            face_count = sum(1 for face in all_faces if face.metadata.character_id == char.id)
+            face_count = sum(1 for face in all_faces if face.metadata.character_name == char.id)
             
             result.append([
                 char.id,
@@ -315,7 +315,7 @@ def show_character_details(char_id: str) -> str:
         # Get associated faces
         repo = RepositoryManager()
         all_faces = repo.list_faces()
-        char_faces = [face for face in all_faces if face.metadata.character_id == character.id]
+        char_faces = [face for face in all_faces if face.metadata.character_name == character.id]
         
         details = f"Character Details\n{'=' * 60}\n\n"
         details += f"ID: {character.id}\n"
