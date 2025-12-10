@@ -1,0 +1,38 @@
+{
+  "name": "FaceFusion Development Container",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "target": "cpu",
+    "context": ".."
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-toolsai.jupyter"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.flake8Enabled": true,
+        "python.formatting.provider": "black",
+        "editor.formatOnSave": true,
+        "terminal.integrated.shell.linux": "/bin/bash"
+      }
+    }
+  },
+  "forwardPorts": [7860],
+  "portsAttributes": {
+    "7860": {
+      "label": "FaceFusion UI",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "pip install -e .",
+  "remoteUser": "root",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  }
+}

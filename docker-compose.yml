@@ -1,0 +1,47 @@
+# Docker Compose for FaceFusion
+# Provides easy deployment with CPU or GPU support
+
+services:
+  # CPU-only version
+  facefusion-cpu:
+    build:
+      context: .
+      target: cpu
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./models:/app/models
+      - ./output:/app/output
+      - ~/.facefusion_repository:/root/.facefusion_repository
+    environment:
+      - PYTHONUNBUFFERED=1
+      - GRADIO_SERVER_NAME=0.0.0.0
+    restart: unless-stopped
+    profiles:
+      - cpu
+
+  # GPU version (requires NVIDIA Docker runtime)
+  facefusion-gpu:
+    build:
+      context: .
+      target: gpu
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./models:/app/models
+      - ./output:/app/output
+      - ~/.facefusion_repository:/root/.facefusion_repository
+    environment:
+      - PYTHONUNBUFFERED=1
+      - GRADIO_SERVER_NAME=0.0.0.0
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    profiles:
+      - gpu
