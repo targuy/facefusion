@@ -78,7 +78,11 @@ def add_face_to_repository(
         else:
             return "✗ Failed to add face. Check image quality and try again."
     except Exception as e:
-        return f"✗ Error: {str(e)}\n{traceback.format_exc()}"
+        # Log error server-side, show sanitized message to user
+        print(f"Error adding face: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return f"✗ Error adding face: {str(e)}"
 
 
 def list_faces_in_repository(
