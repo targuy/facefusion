@@ -266,15 +266,22 @@ class BatchExecutor:
         self,
         source_file: str,
         matches: List[Dict],
-        source_face_entry,
+        source_face_entry: 'FaceEntry',  # type: ignore[name-defined]
         output_path: str
     ) -> Optional[str]:
         """
         Placeholder for actual file processing.
 
+        TODO: Complete FaceFusion integration
         This method demonstrates the structure but doesn't perform actual
         face swapping. Integration with FaceFusion's face_swapper module
         would be implemented here.
+
+        Integration Requirements:
+        1. Import facefusion.processors.modules.face_swapper
+        2. Import facefusion.vision (read_static_image, write_static_image)
+        3. Import facefusion.face_analyser (get_many_faces)
+        4. Import facefusion.ffmpeg (extract_frames, create_video)
 
         Args:
             source_file: Source media file path

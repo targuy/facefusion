@@ -11,6 +11,10 @@ from facefusion_repository.destination.queue_manager import QueueManager
 
 
 # Constants
+# NOTE: This estimate is based on average GPU processing time for face swapping.
+# Actual time varies based on hardware (CPU vs GPU), image resolution,
+# and face detection complexity. This value may need adjustment based on
+# system capabilities and can be made configurable in future versions.
 ESTIMATED_SECONDS_PER_FACE_SWAP = 0.5  # Average time estimate for processing a single face swap
 
 
