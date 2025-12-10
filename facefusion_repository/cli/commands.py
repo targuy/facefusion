@@ -10,6 +10,14 @@ from facefusion_repository.destination.analyzer import DestinationAnalyzer
 from facefusion_repository.destination.queue_manager import QueueManager
 
 
+# Constants
+# NOTE: This estimate is based on average GPU processing time for face swapping.
+# Actual time varies based on hardware (CPU vs GPU), image resolution,
+# and face detection complexity. This value may need adjustment based on
+# system capabilities and can be made configurable in future versions.
+ESTIMATED_SECONDS_PER_FACE_SWAP = 0.5  # Average time estimate for processing a single face swap
+
+
 def register_repository_commands(subparsers: argparse._SubParsersAction) -> None:
     """
     Register repository commands with the argument parser.
@@ -579,4 +587,127 @@ def cmd_queue_stats(args: argparse.Namespace) -> int:
             print(f'  {face_id} ({name}): {count} faces')
 
     return 0
+
+
+def cmd_batch_run(args: argparse.Namespace) -> int:
+    """
+    Execute batch processing command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    from facefusion_repository.batch.executor import BatchExecutor
+
+    print('Initializing batch executor...')
+    print()
+
+    # Initialize components
+    repo_manager = RepositoryManager()
+    queue_manager = QueueManager()
+    executor = BatchExecutor(queue_manager, repo_manager)
+    
+    # Check dry_run flag
+    dry_run_mode = getattr(args, 'dry_run', False)
+
+    # Progress callback
+    def progress_callback(current: int, total: int) -> None:
+        percent = (current / total) * 100 if total > 0 else 0
+        if current % 10 == 0 or current == total:
+            print(f'Progress: {current}/{total} ({percent:.1f}%)')
+
+    try:
+        # Execute batch processing
+        result = executor.execute_all_queues(
+            output_path=args.output,
+            progress_callback=progress_callback,
+            dry_run=dry_run_mode
+        )
+
+        if dry_run_mode:
+            return 0
+
+        # Display results
+        print()
+        print('=' * 60)
+        print('Batch Execution Complete!')
+        print('=' * 60)
+        print()
+        print(f'Total queues processed: {result.total_queues}')
+        print(f'Successful: {result.successful}')
+        print(f'Failed: {result.failed}')
+        print(f'Total faces processed: {result.total_faces_processed}')
+        print(f'Total time: {result.total_time:.2f}s')
+        print()
+
+        # Show per-queue results
+        if result.queue_results:
+            print('Per-Queue Results:')
+            print('-' * 60)
+            for qr in result.queue_results:
+                status = '✓' if qr.success else '✗'
+                print(f'{status} Queue: {qr.queue_id}')
+                if qr.success:
+                    print(f'  Faces processed: {qr.faces_processed}')
+                    print(f'  Time: {qr.processing_time:.2f}s')
+                    if qr.output_file:
+                        print(f'  Output: {qr.output_file}')
+                else:
+                    print(f'  Error: {qr.error}')
+                print()
+
+        return 0 if result.failed == 0 else 1
+
+    except Exception as e:
+        print(f'Error during batch execution: {e}')
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
+def cmd_batch_status(args: argparse.Namespace) -> int:
+    """
+    Show batch processing status command.
+
+    Args:
+        args: Command arguments
+
+    Returns:
+        Exit code (0 for success)
+    """
+    # Get queue statistics
+    queue_manager = QueueManager()
+    stats = queue_manager.get_statistics()
+
+    if stats.total_queues == 0:
+        print('No processing queues available.')
+        print('Use "analyze-destination" command to create queues.')
+        return 0
+
+    print('Batch Processing Status:')
+    print('=' * 60)
+    print()
+    print(f'Total Queues Ready: {stats.total_queues}')
+    print(f'Total Faces to Process: {stats.total_faces}')
+    print()
+
+    # Estimate processing time
+    estimated_time = stats.total_faces * ESTIMATED_SECONDS_PER_FACE_SWAP
+    hours = int(estimated_time / 3600)
+    minutes = int((estimated_time % 3600) / 60)
+    seconds = int(estimated_time % 60)
+
+    print(f'Estimated Processing Time: ', end='')
+    if hours > 0:
+        print(f'{hours}h {minutes}m {seconds}s')
+    elif minutes > 0:
+        print(f'{minutes}m {seconds}s')
+    else:
+        print(f'{seconds}s')
+
+    print()
+    print('Run "batch-run --output <directory>" to start processing.')
+
     return 0

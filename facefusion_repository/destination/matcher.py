@@ -70,9 +70,19 @@ class RepositoryMatcher:
         """
         # Get destination face orientation
         dest_angle = OrientationMatcher.get_closest_standard_angle(destination_face.angle)
+        
+        # Skip if destination face is hidden/occluded
+        if not OrientationMatcher.is_face_visible(dest_angle, strict=False):
+            # Use lenient mode for destination - only reject obvious back views
+            return None
 
-        # Get all repository faces
+        # Get all repository faces and filter to visible orientations only
         repo_faces = self.repository_manager.list_faces()
+        if not repo_faces:
+            return None
+        
+        # Filter to only visible repository faces
+        repo_faces = OrientationMatcher.filter_visible_faces(repo_faces, strict=True)
         if not repo_faces:
             return None
 

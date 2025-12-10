@@ -187,6 +187,13 @@ class RepositoryManager:
 
             # Get orientation angle
             orientation_angle = OrientationMatcher.get_closest_standard_angle(face.angle)
+            
+            # Check if face orientation is visible (not hidden/back view)
+            if not OrientationMatcher.is_face_visible(orientation_angle, strict=True):
+                print(f'Face orientation {orientation_angle}° is hidden/occluded (back view)')
+                print('Faces with hidden orientations are not suitable for face swapping.')
+                print('Acceptable orientations: frontal (0°), left profile (270°), right profile (90°)')
+                return None
 
             # Check for similar orientation faces (potential duplicates)
             similar_faces = [

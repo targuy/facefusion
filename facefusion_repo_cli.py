@@ -21,7 +21,9 @@ from facefusion_repository.cli.commands import (
     cmd_show_queues,
     cmd_export_queue,
     cmd_clear_queues,
-    cmd_queue_stats
+    cmd_queue_stats,
+    cmd_batch_run,
+    cmd_batch_status
 )
 
 
@@ -175,6 +177,28 @@ def create_parser() -> argparse.ArgumentParser:
         help='Show detailed queue statistics'
     )
 
+    # batch-run
+    parser_batch_run = subparsers.add_parser(
+        'batch-run',
+        help='Execute batch face swap processing'
+    )
+    parser_batch_run.add_argument(
+        '--output',
+        required=True,
+        help='Output directory for processed files'
+    )
+    parser_batch_run.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Preview operations without executing'
+    )
+
+    # batch-status
+    parser_batch_status = subparsers.add_parser(
+        'batch-status',
+        help='Show batch processing status'
+    )
+
     return parser
 
 
@@ -215,7 +239,9 @@ def main() -> int:
         'show-queues': cmd_show_queues,
         'export-queue': cmd_export_queue,
         'clear-queues': cmd_clear_queues,
-        'queue-stats': cmd_queue_stats
+        'queue-stats': cmd_queue_stats,
+        'batch-run': cmd_batch_run,
+        'batch-status': cmd_batch_status
     }
 
     command_func = command_map.get(args.command)
