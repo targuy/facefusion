@@ -43,12 +43,38 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
         help='Path to face image'
     )
     parser_add.add_argument(
+        '--character',
+        '--character-name',
+        dest='character_name',
+        required=True,
+        help='Character/person name (primary identifier)'
+    )
+    parser_add.add_argument(
+        '--face-name',
+        help='Optional specific name for this face variant (e.g., "frontal", "profile_left")'
+    )
+    parser_add.add_argument(
         '--name',
-        help='Name for the face'
+        help='[DEPRECATED] Use --character instead. For backward compatibility only.'
     )
     parser_add.add_argument(
         '--tags',
         help='Comma-separated tags'
+    )
+    parser_add.add_argument(
+        '--yaw',
+        type=float,
+        help='Manual yaw angle (horizontal rotation, -180 to 180)'
+    )
+    parser_add.add_argument(
+        '--pitch',
+        type=float,
+        help='Manual pitch angle (vertical tilt, -90 to 90)'
+    )
+    parser_add.add_argument(
+        '--roll',
+        type=float,
+        help='Manual roll angle (head tilt, -180 to 180)'
     )
     parser_add.set_defaults(func=cmd_repo_add_face)
 
@@ -56,6 +82,12 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
     parser_list = subparsers.add_parser(
         'repo-list',
         help='List faces in repository'
+    )
+    parser_list.add_argument(
+        '--character',
+        '--character-name',
+        dest='character_name',
+        help='Filter by character/person name'
     )
     parser_list.add_argument(
         '--orientation',

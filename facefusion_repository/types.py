@@ -26,11 +26,58 @@ class QualityMetrics:
 
 
 @dataclass
+class FaceOrientation:
+    """
+    Multi-axis face orientation.
+    
+    Attributes:
+        yaw: Left-right rotation (-180 to 180, 0 is frontal)
+        pitch: Up-down tilt (-90 to 90, 0 is level)
+        roll: Head tilt rotation (-180 to 180, 0 is upright)
+    """
+    yaw: float = 0.0  # Horizontal rotation (legacy orientation_angle)
+    pitch: float = 0.0  # Vertical tilt
+    roll: float = 0.0  # Head rotation/tilt
+    
+    def to_dict(self) -> Dict[str, float]:
+        """Serialize to dictionary."""
+        return {
+            'yaw': float(self.yaw),
+            'pitch': float(self.pitch),
+            'roll': float(self.roll)
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, float]) -> 'FaceOrientation':
+        """Deserialize from dictionary."""
+        return cls(
+            yaw=data.get('yaw', 0.0),
+            pitch=data.get('pitch', 0.0),
+            roll=data.get('roll', 0.0)
+        )
+    
+    def get_legacy_angle(self) -> int:
+        """Get legacy single-axis orientation angle (0-360)."""
+        # Normalize yaw to 0-360 range
+        angle = int(self.yaw) % 360
+        if angle < 0:
+            angle += 360
+        return angle
+
+
+@dataclass
 class FaceMetadata:
     """Metadata for a face entry."""
     added_date: str
-    name: Optional[str] = None
+    character_name: Optional[str] = None  # Primary identifier for person/character
+    face_name: Optional[str] = None  # Optional specific name for this face (e.g., "frontal", "profile_left")
     tags: List[str] = field(default_factory=list)
+    
+    # Legacy support
+    @property
+    def name(self) -> Optional[str]:
+        """Legacy name property for backward compatibility."""
+        return self.face_name or self.character_name
 
 
 @dataclass
@@ -38,17 +85,25 @@ class FaceEntry:
     """Represents a face in the repository."""
     id: str
     file_path: str
-    orientation_angle: int  # 0, 45, 90, 135, 180, 225, 270, 315
+    orientation: FaceOrientation  # Multi-axis orientation (yaw, pitch, roll)
     quality_metrics: QualityMetrics
     face_embedding: NDArray[numpy.float64]
     face_landmarks: Dict[str, Any]
     metadata: FaceMetadata
+    
+    # Legacy support
+    @property
+    def orientation_angle(self) -> int:
+        """Legacy single-axis orientation for backward compatibility."""
+        return self.orientation.get_legacy_angle()
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
         return {
             'id': self.id,
             'file_path': self.file_path,
+            'orientation': self.orientation.to_dict(),
+            # Keep legacy field for backward compatibility
             'orientation_angle': self.orientation_angle,
             'quality_metrics': {
                 'resolution': list(self.quality_metrics.resolution),
@@ -62,7 +117,9 @@ class FaceEntry:
             'face_landmarks': self.face_landmarks,
             'metadata': {
                 'added_date': self.metadata.added_date,
-                'name': self.metadata.name,
+                'character_name': self.metadata.character_name,
+                'face_name': self.metadata.face_name,
+                'name': self.metadata.name,  # Legacy field
                 'tags': self.metadata.tags
             }
         }
@@ -70,10 +127,22 @@ class FaceEntry:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'FaceEntry':
         """Deserialize from dictionary."""
+        # Handle both new and legacy orientation formats
+        if 'orientation' in data and isinstance(data['orientation'], dict):
+            orientation = FaceOrientation.from_dict(data['orientation'])
+        else:
+            # Legacy format: single orientation_angle
+            orientation = FaceOrientation(yaw=float(data.get('orientation_angle', 0)))
+        
+        # Handle both new and legacy metadata formats
+        metadata_data = data['metadata']
+        character_name = metadata_data.get('character_name') or metadata_data.get('name')
+        face_name = metadata_data.get('face_name')
+        
         return cls(
             id=data['id'],
             file_path=data['file_path'],
-            orientation_angle=data['orientation_angle'],
+            orientation=orientation,
             quality_metrics=QualityMetrics(
                 resolution=tuple(data['quality_metrics']['resolution']),
                 sharpness=data['quality_metrics']['sharpness'],
@@ -85,9 +154,10 @@ class FaceEntry:
             face_embedding=numpy.array(data['face_embedding']),
             face_landmarks=data['face_landmarks'],
             metadata=FaceMetadata(
-                added_date=data['metadata']['added_date'],
-                name=data['metadata'].get('name'),
-                tags=data['metadata'].get('tags', [])
+                added_date=metadata_data['added_date'],
+                character_name=character_name,
+                face_name=face_name,
+                tags=metadata_data.get('tags', [])
             )
         )
 
