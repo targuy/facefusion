@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 
 from facefusion_repository.repository.orientation_matcher import OrientationMatcher
 from facefusion_repository.repository.quality_assessor import QualityAssessor
+from facefusion_repository.repository.orientation_3d import Orientation3DDetector
 from facefusion_repository.types import (
     DEFAULT_QUALITY_THRESHOLDS,
     FaceEntry,
@@ -136,7 +137,8 @@ class RepositoryManager:
         image_path: str,
         name: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        quality_thresholds: Optional[QualityThresholds] = None
+        quality_thresholds: Optional[QualityThresholds] = None,
+        character_id: Optional[str] = None
     ) -> Optional[str]:
         """
         Add new face to repository.
@@ -146,6 +148,7 @@ class RepositoryManager:
             name: Optional name for the face
             tags: Optional tags for categorization
             quality_thresholds: Optional custom quality thresholds
+            character_id: Optional character/person ID to associate this face with
 
         Returns:
             Face ID if successful, None otherwise
@@ -185,8 +188,13 @@ class RepositoryManager:
                 print(f'Quality metrics: {quality_metrics}')
                 return None
 
-            # Get orientation angle
+            # Get orientation angle (legacy)
             orientation_angle = OrientationMatcher.get_closest_standard_angle(face.angle)
+            
+            # Detect 3D orientation (yaw, pitch, roll)
+            orientation_3d = Orientation3DDetector.detect_from_landmarks({
+                'landmarks': face.landmark_set
+            })
 
             # Check for similar orientation faces (potential duplicates)
             similar_faces = [
@@ -229,8 +237,10 @@ class RepositoryManager:
                 metadata=FaceMetadata(
                     added_date=datetime.utcnow().isoformat() + 'Z',
                     name=name,
-                    tags=tags or []
-                )
+                    tags=tags or [],
+                    character_id=character_id
+                ),
+                orientation_3d=orientation_3d
             )
 
             # Add to repository
@@ -265,7 +275,8 @@ class RepositoryManager:
     def list_faces(
         self,
         filter_by_orientation: Optional[int] = None,
-        filter_by_tags: Optional[List[str]] = None
+        filter_by_tags: Optional[List[str]] = None,
+        filter_by_character: Optional[str] = None
     ) -> List[FaceEntry]:
         """
         List all faces with optional filters.
@@ -273,6 +284,7 @@ class RepositoryManager:
         Args:
             filter_by_orientation: Filter by specific orientation angle
             filter_by_tags: Filter by tags (face must have all specified tags)
+            filter_by_character: Filter by character ID
 
         Returns:
             List of FaceEntry objects
@@ -294,6 +306,13 @@ class RepositoryManager:
             faces = [
                 f for f in faces
                 if all(tag in f.metadata.tags for tag in filter_by_tags)
+            ]
+        
+        # Apply character filter
+        if filter_by_character:
+            faces = [
+                f for f in faces
+                if f.metadata.character_id == filter_by_character
             ]
 
         return faces

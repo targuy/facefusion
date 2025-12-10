@@ -6,6 +6,7 @@ import argparse
 
 from facefusion_repository.repository.compatibility_matrix import CompatibilityMatrix
 from facefusion_repository.repository.manager import RepositoryManager
+from facefusion_repository.repository.character_manager import CharacterManager
 from facefusion_repository.destination.analyzer import DestinationAnalyzer
 from facefusion_repository.destination.queue_manager import QueueManager
 
@@ -50,6 +51,10 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
         '--tags',
         help='Comma-separated tags'
     )
+    parser_add.add_argument(
+        '--character',
+        help='Character/person ID to associate this face with'
+    )
     parser_add.set_defaults(func=cmd_repo_add_face)
 
     # repo-list command
@@ -65,6 +70,10 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
     parser_list.add_argument(
         '--tags',
         help='Filter by tags (comma-separated)'
+    )
+    parser_list.add_argument(
+        '--character',
+        help='Filter by character ID'
     )
     parser_list.set_defaults(func=cmd_repo_list)
 
@@ -169,6 +178,61 @@ def register_repository_commands(subparsers: argparse._SubParsersAction) -> None
         help='Show detailed queue statistics'
     )
     parser_queue_stats.set_defaults(func=cmd_queue_stats)
+    
+    # character-add command
+    parser_char_add = subparsers.add_parser(
+        'character-add',
+        help='Add a new character/person'
+    )
+    parser_char_add.add_argument(
+        '--name',
+        required=True,
+        help='Character name'
+    )
+    parser_char_add.add_argument(
+        '--description',
+        help='Character description'
+    )
+    parser_char_add.add_argument(
+        '--tags',
+        help='Comma-separated tags'
+    )
+    parser_char_add.set_defaults(func=cmd_character_add)
+    
+    # character-list command
+    parser_char_list = subparsers.add_parser(
+        'character-list',
+        help='List all characters'
+    )
+    parser_char_list.add_argument(
+        '--tags',
+        help='Filter by tags (comma-separated)'
+    )
+    parser_char_list.set_defaults(func=cmd_character_list)
+    
+    # character-show command
+    parser_char_show = subparsers.add_parser(
+        'character-show',
+        help='Show character details'
+    )
+    parser_char_show.add_argument(
+        '--character-id',
+        required=True,
+        help='Character ID to show'
+    )
+    parser_char_show.set_defaults(func=cmd_character_show)
+    
+    # character-remove command
+    parser_char_remove = subparsers.add_parser(
+        'character-remove',
+        help='Remove a character'
+    )
+    parser_char_remove.add_argument(
+        '--character-id',
+        required=True,
+        help='Character ID to remove'
+    )
+    parser_char_remove.set_defaults(func=cmd_character_remove)
 
 
 def cmd_repo_init(args: argparse.Namespace) -> int:
@@ -209,12 +273,16 @@ def cmd_repo_add_face(args: argparse.Namespace) -> int:
     tags = None
     if args.tags:
         tags = [tag.strip() for tag in args.tags.split(',')]
+    
+    # Get character ID if provided
+    character_id = getattr(args, 'character', None)
 
     repo = RepositoryManager()
     face_id = repo.add_face(
         image_path=args.source,
         name=args.name,
-        tags=tags
+        tags=tags,
+        character_id=character_id
     )
 
     if face_id:
@@ -224,6 +292,8 @@ def cmd_repo_add_face(args: argparse.Namespace) -> int:
             print('  Name: {}'.format(args.name))
         if tags:
             print('  Tags: {}'.format(', '.join(tags)))
+        if character_id:
+            print('  Character ID: {}'.format(character_id))
 
         # Show face details
         face = repo.get_face(face_id)
@@ -251,16 +321,20 @@ def cmd_repo_list(args: argparse.Namespace) -> int:
     filter_tags = None
     if args.tags:
         filter_tags = [tag.strip() for tag in args.tags.split(',')]
+    
+    # Get character filter if provided
+    character_id = getattr(args, 'character', None)
 
     repo = RepositoryManager()
     faces = repo.list_faces(
         filter_by_orientation=args.orientation,
-        filter_by_tags=filter_tags
+        filter_by_tags=filter_tags,
+        filter_by_character=character_id
     )
 
     if not faces:
         print('No faces found in repository.')
-        if args.orientation or filter_tags:
+        if args.orientation or filter_tags or character_id:
             print('Try removing filters to see all faces.')
         return 0
 
@@ -271,8 +345,13 @@ def cmd_repo_list(args: argparse.Namespace) -> int:
         print('ID: {}'.format(face.id))
         print('  Name: {}'.format(face.metadata.name or 'Unnamed'))
         print('  Orientation: {}°'.format(face.orientation_angle))
+        if face.orientation_3d:
+            print('  3D Orientation: yaw={:.1f}°, pitch={:.1f}°, roll={:.1f}°'.format(
+                face.orientation_3d.yaw, face.orientation_3d.pitch, face.orientation_3d.roll))
         print('  Quality: {:.2f}'.format(face.quality_metrics.overall_quality))
         print('  Resolution: {}x{}'.format(face.quality_metrics.resolution[0], face.quality_metrics.resolution[1]))
+        if face.metadata.character_id:
+            print('  Character ID: {}'.format(face.metadata.character_id))
         if face.metadata.tags:
             print('  Tags: {}'.format(', '.join(face.metadata.tags)))
         print('  Added: {}'.format(face.metadata.added_date))
@@ -711,3 +790,163 @@ def cmd_batch_status(args: argparse.Namespace) -> int:
     print('Run "batch-run --output <directory>" to start processing.')
 
     return 0
+
+
+def cmd_character_add(args: argparse.Namespace) -> int:
+    """
+    Add a new character/person command.
+    
+    Args:
+        args: Command arguments
+        
+    Returns:
+        Exit code (0 for success)
+    """
+    print(f'Adding character: {args.name}')
+    
+    # Parse tags if provided
+    tags = None
+    if args.tags:
+        tags = [tag.strip() for tag in args.tags.split(',')]
+    
+    char_manager = CharacterManager()
+    character = char_manager.add_character(
+        name=args.name,
+        description=args.description,
+        tags=tags
+    )
+    
+    if character:
+        print('✓ Character added successfully!')
+        print('  ID: {}'.format(character.id))
+        print('  Name: {}'.format(character.name))
+        if character.description:
+            print('  Description: {}'.format(character.description))
+        if character.tags:
+            print('  Tags: {}'.format(', '.join(character.tags)))
+        return 0
+    else:
+        print('✗ Failed to add character')
+        return 1
+
+
+def cmd_character_list(args: argparse.Namespace) -> int:
+    """
+    List all characters command.
+    
+    Args:
+        args: Command arguments
+        
+    Returns:
+        Exit code (0 for success)
+    """
+    # Parse tags if provided
+    filter_tags = None
+    if args.tags:
+        filter_tags = [tag.strip() for tag in args.tags.split(',')]
+    
+    char_manager = CharacterManager()
+    characters = char_manager.list_characters(tags=filter_tags)
+    
+    if not characters:
+        print('No characters found.')
+        if filter_tags:
+            print('Try removing filters to see all characters.')
+        return 0
+    
+    # Get repository to count faces per character
+    repo = RepositoryManager()
+    all_faces = repo.list_faces()
+    
+    print('Found {} character(s):'.format(len(characters)))
+    print()
+    
+    for character in characters:
+        # Count faces for this character
+        face_count = sum(1 for face in all_faces if face.metadata.character_id == character.id)
+        
+        print('ID: {}'.format(character.id))
+        print('  Name: {}'.format(character.name))
+        print('  Faces: {}'.format(face_count))
+        if character.description:
+            print('  Description: {}'.format(character.description))
+        if character.tags:
+            print('  Tags: {}'.format(', '.join(character.tags)))
+        if character.created_date:
+            print('  Created: {}'.format(character.created_date))
+        print()
+    
+    return 0
+
+
+def cmd_character_show(args: argparse.Namespace) -> int:
+    """
+    Show character details command.
+    
+    Args:
+        args: Command arguments
+        
+    Returns:
+        Exit code (0 for success)
+    """
+    char_manager = CharacterManager()
+    character = char_manager.get_character(args.character_id)
+    
+    if not character:
+        print('✗ Character not found: {}'.format(args.character_id))
+        return 1
+    
+    # Get repository to show associated faces
+    repo = RepositoryManager()
+    all_faces = repo.list_faces()
+    character_faces = [face for face in all_faces if face.metadata.character_id == character.id]
+    
+    print('Character Details:')
+    print('=' * 60)
+    print('ID: {}'.format(character.id))
+    print('Name: {}'.format(character.name))
+    if character.description:
+        print('Description: {}'.format(character.description))
+    if character.tags:
+        print('Tags: {}'.format(', '.join(character.tags)))
+    if character.created_date:
+        print('Created: {}'.format(character.created_date))
+    
+    print()
+    print('Associated Faces: {}'.format(len(character_faces)))
+    if character_faces:
+        print()
+        for face in character_faces:
+            print('  - {} ({}): {}°, quality={:.2f}'.format(
+                face.id,
+                face.metadata.name or 'Unnamed',
+                face.orientation_angle,
+                face.quality_metrics.overall_quality
+            ))
+            if face.orientation_3d:
+                print('    3D: yaw={:.1f}°, pitch={:.1f}°, roll={:.1f}°'.format(
+                    face.orientation_3d.yaw, face.orientation_3d.pitch, face.orientation_3d.roll))
+    
+    return 0
+
+
+def cmd_character_remove(args: argparse.Namespace) -> int:
+    """
+    Remove a character command.
+    
+    Args:
+        args: Command arguments
+        
+    Returns:
+        Exit code (0 for success)
+    """
+    print(f'Removing character: {args.character_id}')
+    
+    char_manager = CharacterManager()
+    if char_manager.remove_character(args.character_id):
+        print('✓ Character removed successfully')
+        print('Note: Associated faces are NOT removed. Update them manually if needed.')
+        return 0
+    else:
+        print('✗ Failed to remove character')
+        return 1

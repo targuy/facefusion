@@ -26,11 +26,37 @@ class QualityMetrics:
 
 
 @dataclass
+class Orientation3D:
+    """3D orientation of face (Euler angles in degrees)."""
+    yaw: float  # Horizontal rotation (left/right): -180 to 180
+    pitch: float  # Vertical tilt (up/down): -90 to 90
+    roll: float  # Head rotation (clockwise/counter-clockwise): -180 to 180
+    
+    def to_dict(self) -> Dict[str, float]:
+        """Serialize to dictionary."""
+        return {
+            'yaw': float(self.yaw),
+            'pitch': float(self.pitch),
+            'roll': float(self.roll)
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, float]) -> 'Orientation3D':
+        """Deserialize from dictionary."""
+        return cls(
+            yaw=data['yaw'],
+            pitch=data['pitch'],
+            roll=data['roll']
+        )
+
+
+@dataclass
 class FaceMetadata:
     """Metadata for a face entry."""
     added_date: str
     name: Optional[str] = None
     tags: List[str] = field(default_factory=list)
+    character_id: Optional[str] = None  # Group faces by character/person
 
 
 @dataclass
@@ -38,15 +64,16 @@ class FaceEntry:
     """Represents a face in the repository."""
     id: str
     file_path: str
-    orientation_angle: int  # 0, 45, 90, 135, 180, 225, 270, 315
+    orientation_angle: int  # Legacy: 0, 45, 90, 135, 180, 225, 270, 315 (yaw only)
     quality_metrics: QualityMetrics
     face_embedding: NDArray[numpy.float64]
     face_landmarks: Dict[str, Any]
     metadata: FaceMetadata
+    orientation_3d: Optional['Orientation3D'] = None  # New: Full 3D orientation (yaw, pitch, roll)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
-        return {
+        result = {
             'id': self.id,
             'file_path': self.file_path,
             'orientation_angle': self.orientation_angle,
@@ -63,13 +90,21 @@ class FaceEntry:
             'metadata': {
                 'added_date': self.metadata.added_date,
                 'name': self.metadata.name,
-                'tags': self.metadata.tags
+                'tags': self.metadata.tags,
+                'character_id': self.metadata.character_id
             }
         }
+        if self.orientation_3d:
+            result['orientation_3d'] = self.orientation_3d.to_dict()
+        return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'FaceEntry':
         """Deserialize from dictionary."""
+        orientation_3d = None
+        if 'orientation_3d' in data:
+            orientation_3d = Orientation3D.from_dict(data['orientation_3d'])
+        
         return cls(
             id=data['id'],
             file_path=data['file_path'],
@@ -87,8 +122,10 @@ class FaceEntry:
             metadata=FaceMetadata(
                 added_date=data['metadata']['added_date'],
                 name=data['metadata'].get('name'),
-                tags=data['metadata'].get('tags', [])
-            )
+                tags=data['metadata'].get('tags', []),
+                character_id=data['metadata'].get('character_id')
+            ),
+            orientation_3d=orientation_3d
         )
 
 
@@ -261,7 +298,42 @@ class CoverageReport:
     faces_per_orientation: Dict[int, int]
 
 
+@dataclass
+class Character:
+    """Represents a character/person with associated faces."""
+    id: str
+    name: str
+    description: Optional[str] = None
+    face_ids: List[str] = field(default_factory=list)
+    created_date: Optional[str] = None
+    tags: List[str] = field(default_factory=list)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to dictionary."""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'face_ids': self.face_ids,
+            'created_date': self.created_date,
+            'tags': self.tags
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Character':
+        """Deserialize from dictionary."""
+        return cls(
+            id=data['id'],
+            name=data['name'],
+            description=data.get('description'),
+            face_ids=data.get('face_ids', []),
+            created_date=data.get('created_date'),
+            tags=data.get('tags', [])
+        )
+
+
 # Type Aliases
 ProgressCallback: TypeAlias = Callable[[int, int, str], None]
 OrientationAngle: TypeAlias = int  # 0-360
 FaceID: TypeAlias = str
+CharacterID: TypeAlias = str
